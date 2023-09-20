@@ -1,6 +1,8 @@
 using MPSExperiments
 using Test
 
-@testset "MPSExperiments.jl" begin
-    # Write your tests here.
+using TensorTrains, Random
+
+@testset "Uniform Tensor Train" begin
+    include("uniform_tt.jl")
 end
