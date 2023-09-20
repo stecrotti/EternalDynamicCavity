@@ -1,8 +1,9 @@
 using MPSExperiments
 using Test
 
-using TensorTrains, Random
+using TensorTrains, Random, Tullio
 
 @testset "Uniform Tensor Train" begin
-    include("uniform_tt.jl")
+    # include("uniform_tt.jl")
+    include("uniform_tt_derivatives.jl")
 end
