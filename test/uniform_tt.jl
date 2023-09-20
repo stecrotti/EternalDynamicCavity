@@ -13,21 +13,27 @@ q.tensor ./= sqrt(λ)
 p.tensor ./= sqrt(λ)
 G = transfer_operator(q, p)
 
-Ginf = infinite_power(G; e = (; l, r, λ))
-ks = 1:20
-diffs = map(ks) do k
-    Gk = G^k
-    norm(Gk - abs.(Ginf.tensor))
-end
+G = transfer_operator(q)
 
-using UnicodePlots
-lineplot(ks, diffs, xlabel="k", ylabel="err", yscale=:log10)
+# Ginf = infinite_power(G; e = (; l, r, λ))
+# ks = 1:20
+# diffs = map(ks) do k
+#     Gk = G^k
+#     norm(Gk - abs.(Ginf.tensor))
+# end
 
-@test tr(G^L) ≈ dot(p, q)
+# using UnicodePlots
+# lineplot(ks, diffs, xlabel="k", ylabel="err", yscale=:log10)
 
-using BenchmarkTools, ProgressMeter
-ks = 1:15
-map(ks) do k
-    @test (G^k).tensor ≈ slowpow(G, k).tensor
-end
+# @test tr(G^L) ≈ dot(p, q)
+
+# E = transfer_operator(q)
+# @test tr(E^L) ≈ norm(q)
+
+# using BenchmarkTools, ProgressMeter
+# ks = 1:15
+# map(ks) do k
+#     @test (G^k).tensor ≈ slowpow(G, k).tensor
+# end
+
 

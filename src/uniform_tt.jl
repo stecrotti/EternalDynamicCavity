@@ -26,6 +26,8 @@ function transfer_operator(q::UniformTensorTrain, p::UniformTensorTrain)
     return TransferOperator(G)
 end
 
+transfer_operator(q::UniformTensorTrain) = transfer_operator(q, q)
+
 function Base.:(*)(G::TransferOperator, A::AbstractMatrix)
     return @tullio B[i,j] := G[i,j,k,l] * A[k,l]
 end
