@@ -85,4 +85,76 @@ function LinearAlgebra.tr(G::TransferOperator)
     @tullio t := G[i,j,i,j]
 end
 
+function truncate_utt(p::UniformTensorTrain, sz::Integer; A0 = rand(sz, sz, size(p.tensor)[3:end]...),
+        maxiter = 200, tol=1e-4, damp=0.0, showprogress=true)
+    A = _reshape1(A0)
+    Anew = copy(A)
+    M = p.tensor
+    Mresh = _reshape1(M)
+    L = p.L
 
+    prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
+    for it in 1:maxiter
+        q = UniformTensorTrain(A, L)
+        normalize!(q)
+        # q.tensor ./= norm(q)
+        G = transfer_operator(q, p)
+        E = transfer_operator(q)
+
+        # EL = prod(fill(E, L-1)).tensor
+        # GL = prod(fill(G, L-1)).tensor
+        EL = (E^(L-1)).tensor .|> real
+        GL = (G^(L-1)).tensor .|> real
+        @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
+        
+        @cast ELresh[(b,a),(j,l)] := EL[b,j,a,l]
+        @cast Bresh[(b,a), x] := B[b,a,x]
+        
+        for x in axes(Anew, 3)
+            k = ELresh \ Bresh[:,x]
+            Anew[:,:,x] = reshape(k, Int(sqrt(length(k))), :)'
+        end
+
+        ε = norm(A - Anew) / sz
+        ε < tol && return collect(_reshapeas(A, A0))
+        A .= damp * A + (1-damp) * Anew 
+        next!(prog, showvalues=[("ε/tol","$ε/$tol")])
+    end
+    return collect(_reshapeas(A, A0))
+end
+
+function truncate_utt_inf(p::UniformTensorTrain, sz::Integer; A0 = rand(sz, sz, size(p.tensor)[3:end]...),
+        maxiter = 200, tol=1e-4, damp=0.0, showprogress=true)
+    A = _reshape1(A0)
+    Anew = copy(A)
+    M = p.tensor
+    Mresh = _reshape1(M)
+    L = p.L
+
+    prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
+    for it in 1:maxiter
+        q = UniformTensorTrain(A, L)
+
+        G = transfer_operator(q, p)
+        E = transfer_operator(q)
+        ELop = infinite_power(E)
+        EL = ELop.tensor .|> real
+        GL = infinite_power(G).tensor .|> real
+        @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
+        
+        @cast ELresh[(b,a),(j,l)] := EL[b,j,a,l]
+        @cast Bresh[(b,a), x] := B[b,a,x]
+        
+        for x in axes(Anew, 3)
+            k = ELresh \ Bresh[:,x]
+            Anew[:,:,x] = reshape(k, Int(sqrt(length(k))), :)'
+        end
+
+        ε = norm(A - Anew) / sz
+        ε < tol && return collect(_reshapeas(A, A0))
+        A .= damp * A + (1-damp) * Anew 
+        A ./= sqrt(abs(tr(ELop)))   # normalize A
+        next!(prog, showvalues=[("ε/tol","$ε/$tol")])
+    end
+    return collect(_reshapeas(A, A0))
+end
