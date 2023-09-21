@@ -1,7 +1,7 @@
 using MPSExperiments
 using Test
 
-using TensorTrains, Random, Tullio
+using TensorTrains, Random, Tullio, TensorCast
 
 # @testset "Uniform Tensor Train" begin
     # include("uniform_tt.jl")
