@@ -14,8 +14,10 @@ function iterate(p, sz; A0 = rand(sz, sz, size(p.tensor)[3:end]...),
         G = transfer_operator(q, p)
         E = transfer_operator(q)
 
-        EL = prod(fill(E, L-1)).tensor
-        GL = prod(fill(G, L-1)).tensor
+        # EL = prod(fill(E, L-1)).tensor
+        # GL = prod(fill(G, L-1)).tensor
+        EL = (E^(L-1)).tensor .|> real
+        GL = (G^(L-1)).tensor .|> real
         @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
         
         @cast ELresh[(b,a),(j,l)] := EL[b,j,a,l]
@@ -34,9 +36,9 @@ function iterate(p, sz; A0 = rand(sz, sz, size(p.tensor)[3:end]...),
     return A
 end
 
-rng = MersenneTwister(0)
+rng = MersenneTwister(1)
 
-L = 10
+L = 50
 qs = (3, 2, 2)
 M = rand(rng, 10, 10, qs...)
 p = UniformTensorTrain(M, L)
