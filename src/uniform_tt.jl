@@ -52,10 +52,11 @@ end
 function Base.:(^)(G::TransferOperator{F,C}, k::Integer) where {F,C}
     (; tensor, L, R, Λ) = G
     Gk = zeros(C, size(G.tensor))
-    d = Int(sqrt(length(Λ)))
+    # d = Int(sqrt(length(Λ)))
+    d = size(G.tensor)
     for (λ, l, r) in zip(Λ, eachrow(L), eachcol(R))
-        l_ = reshape(l, d, d)
-        r_ = reshape(r, d, d)
+        l_ = reshape(l, d[1], d[2])
+        r_ = reshape(r, d[1], d[2])
         @tullio Gk_[i,j,m,n] := λ^k * r_[i,j] * l_[m,n]
         Gk .+= Gk_
     end
@@ -65,9 +66,10 @@ end
 function eig(G::TransferOperator)
     (; tensor, L, R, Λ) = G
     λ = first(Λ)
-    d = Int(sqrt(length(Λ)))
-    r = reshape(R[:,1], d, d)
-    l = reshape(L[1,:], d, d)
+    # d = Int(sqrt(length(Λ)))
+    d = size(G.tensor)
+    r = reshape(R[:,1], d[1], d[2])
+    l = reshape(L[1,:], d[1], d[2])
     (; l, r, λ)
 end
 

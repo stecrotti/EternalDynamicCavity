@@ -3,7 +3,8 @@ using Test
 
 using TensorTrains, Random, Tullio
 
-@testset "Uniform Tensor Train" begin
+# @testset "Uniform Tensor Train" begin
     # include("uniform_tt.jl")
     include("uniform_tt_derivatives.jl")
-end
+    include("variational_opt.jl")
+# end
