@@ -1,24 +1,3 @@
-# struct TransferOperator{F<:Number, C<:Number}
-#     tensor :: Array{F,4}
-#     L :: Matrix{C}
-#     R :: Matrix{C}
-#     Λ :: Vector{C}
-
-#     function TransferOperator(G::Array{F,4}) where {F<:Number}
-#         @cast Gresh[(i,j),(k,l)] := G[i,j,k,l]
-#         E = eigen(Gresh, sortby = λ -> (-abs(λ)))
-#         R = eigvecs(E)
-#         L = pinv(R)
-#         Λ = eigvals(E)
-#         return new{F,eltype(E)}(G, L, R, Λ)
-#     end
-# end
-
-# @forward TransferOperator.tensor Base.getindex, Base.setindex!, Base.ndims, Base.axes,
-#     Base.reshape, Base.length, Base.iterate, Base.similar, Base.:(-)
-
-# Base.ndims(::Type{<:TransferOperator}) = 4
-
 abstract type AbstractTransferOperator{F<:Number} end
 abstract type AbstractFiniteTransferOperator{F<:Number} <: AbstractTransferOperator{F} end
 
@@ -44,7 +23,8 @@ end
 get_tensors(G::TransferOperator) = (G.A, G.M)
 get_tensors(G::HomogeneousTransferOperator) = (G.A, G.A)
 
-function transfer_operator(q::AbstractUniformTensorTrain, p::AbstractUniformTensorTrain)
+# the first argument `p` is the one with `M` matrices
+function transfer_operator(p::AbstractUniformTensorTrain, q::AbstractUniformTensorTrain)
     # A = _reshape1(q.tensor)
     # M = _reshape1(p.tensor)
     # @tullio G[i,j,k,l] := A[i,k,x] * conj(M[j,l,x])
@@ -91,12 +71,45 @@ function LinearAlgebra.tr(G::AbstractFiniteTransferOperator)
     return sum(tr(@view A[:,:,x])*conj(tr(@view M[:,:,x])) for x in axes(A, 3))
 end
 
-function Base.:(^)(G::AbstractTransferOperator, k::Integer)
+function mypow(G::AbstractTransferOperator, k::Integer)
     Gk = G
     for _ in 1:k-1
         Gk = Gk * G
     end
     return Gk
+end
+
+function Base.:(^)(G::TransferOperator, k::Integer)
+    (; L, R, Λ) = eig(G)
+    d = sizes(G)
+    Gk = zeros(ComplexF64, sizes(G))
+    for (λ, l, r) in zip(Λ, eachrow(L), eachcol(R))
+        l_ = reshape(l, d[1], d[2])
+        r_ = reshape(r, d[1], d[2])
+        @tullio Gk_[i,j,m,n] := λ^k * r_[i,j] * l_[m,n]
+        Gk .+= Gk_
+    end
+    @cast Gkresh[(i,j),(k,l)] := Gk[i,k,j,l]
+    Q, R = qr(real(Gkresh))
+    A = reshape(Q, d[1], d[3], :) |> collect
+    M = permutedims(reshape(R, :, d[2], d[4]), (2,3,1)) |> collect
+    return TransferOperator(A, M)
+end
+
+function Base.:(^)(G::HomogeneousTransferOperator, k::Integer)
+    (; L, R, Λ) = eig(G)
+    d = sizes(G)
+    Gk = zeros(ComplexF64, sizes(G))
+    for (λ, l, r) in zip(Λ, eachrow(L), eachcol(R))
+        l_ = reshape(l, d[1], d[2])
+        r_ = reshape(r, d[1], d[2])
+        @tullio Gk_[i,j,m,n] := λ^k * r_[i,j] * l_[m,n]
+        Gk .+= Gk_
+    end
+    @cast Gkresh[(i,j),(k,l)] := Gk[i,k,j,l]
+    U, Σ, V = svd(real(Gkresh))
+    A = reshape(U * diagm(sqrt.(Σ)), d[1], d[3], :) |> collect
+    return HomogeneousTransferOperator(A)
 end
 
 # function Base.:(^)(G::AbstractTransferOperator, k::Integer)
@@ -168,19 +181,36 @@ function eig(G::InfiniteTransferOperator)
     return (; L, R, Λ)
 end
 
-# Base.isapprox(G::TransferOperator, H::TransferOperator) = isapprox(G.tensor, H.tensor)
+function LinearAlgebra.tr(G::InfiniteTransferOperator)
+    (; l, r, λ) = G
+    return λ * tr(r*l)
+end
 
 function infinite_transfer_operator(G::AbstractTransferOperator)
     l, r, λ = leading_eig(G)
     InfiniteTransferOperator(l, r, λ)
 end
 
-# function infinite_power(G::TransferOperator; e = leading_eig(G))
-#     l, r = e
-#     TransferOperator(@tullio Ginf_[i,j,k,m] := r[i,j] * l[k,m])
-# end
+function gradientA!(g, p::AbstractPeriodicTensorTrain, q::AbstractPeriodicTensorTrain)
+    @assert size(g) == tuple(size(q.tensor)[1:2]..., prod(size(q.tensor)[3:end]))
+    L = length(p)
+    M = p.tensor
+    G = transfer_operator(p, q)
+    A, M = get_tensors(G)
+    GL = collect((G^(L-1)))
+    @tullio g[a,b,x] = GL[b,j,a,l] * conj(M[l,j,x]) *($L)
+end
+gradientA(p, q) = gradientA!(zeros(size(q.tensor)[1:2]..., prod(size(q.tensor)[3:end])), p, q)
 
-
+function gradientA!(g, q::AbstractPeriodicTensorTrain)
+    L = length(q)
+    A = q.tensor
+    E = transfer_operator(q)
+    A, M = get_tensors(E)
+    EL = collect((E^(L-1)))
+    @tullio g[a,b,x] = EL[b,j,a,l] * conj(A[l,j,x]) * 2 *($L)
+end
+gradientA(q) = gradientA!(zeros(size(q.tensor)), q)
 
 function truncate_utt(p::UniformTensorTrain, sz::Integer;
         rng = Random.GLOBAL_RNG,
@@ -196,7 +226,7 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
     for it in 1:maxiter
         q = UniformTensorTrain(A, L)
-        normalize!(q)
+        # normalize!(q)
         # q.tensor ./= norm(q)
         G = transfer_operator(q, p)
         E = transfer_operator(q)
@@ -215,10 +245,11 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
             Anew[:,:,x] = reshape(k, Int(sqrt(length(k))), :)'
         end
 
+        normalize!(q)
         ε = norm(A - Anew) / sz
         ε < tol && return collect(_reshapeas(A, A0))
         A .= damp * A + (1-damp) * Anew 
-        next!(prog, showvalues=[("ε/tol","$ε/$tol")])
+        next!(prog, showvalues=[("ε/tol","$ε/$tol"), ("∑ₓ(q-p)²", norm2m(q,p))])
     end
     return collect(_reshapeas(A, A0))
 end
@@ -238,10 +269,10 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
 
         G = transfer_operator(q, p)
         E = transfer_operator(q)
-        Einfop = infinite_power(E)
-        Einf = Einfop.tensor .|> real
-        Ginfop = infinite_power(G)
-        Ginf = Ginfop.tensor .|> real
+        Einfop = infinite_transfer_operator(E)
+        Einf = collect(Einfop) .|> real
+        Ginfop = infinite_transfer_operator(G)
+        Ginf = collect(Ginfop) .|> real
         @tullio B[b,a,x] := Ginf[b,j,a,l] * Mresh[l,j,x]
         
         @cast Einfresh[(b,a),(j,l)] := Einf[b,j,a,l]
@@ -278,9 +309,9 @@ function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer;
 
         G = transfer_operator(q, p)
         E = transfer_operator(q)
-        eg = eig(G)
+        eg = leading_eig(G)
         V = eg[:l] |> real; U = eg[:r] |> real
-        ee = eig(E)
+        ee = leading_eig(E)
         L = ee[:l] |> real; R = ee[:r] |> real
         Linv = pinv(L); Rinv = pinv(R)
         

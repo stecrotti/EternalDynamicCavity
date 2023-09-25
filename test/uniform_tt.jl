@@ -17,6 +17,7 @@ E = transfer_operator(qq)
 qq.tensor ./= √η
 Einf = infinite_transfer_operator(E)
 ks = 1:5
+
 diffs = map(ks) do k
     Ek = E^k
     norm(collect(Ek) - abs.(collect(Einf)))
@@ -25,6 +26,11 @@ end
 
 G = transfer_operator(p, q)
 @test tr(G^L) ≈ dot(p, q)
+
+for k in ks
+    Gk = G^k
+    @test collect(mypow(G, k)) ≈ collect(Gk)
+end
 
 E = transfer_operator(q)
 @test tr(E^L) ≈ norm(q)^2

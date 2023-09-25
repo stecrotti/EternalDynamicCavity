@@ -1,29 +1,22 @@
-# using TensorCast
+using MPSExperiments
+using Test
+using TensorTrains, Random, Tullio, TensorCast, ProgressMeter
 
 rng = MersenneTwister(0)
-qs = (4)
 
-L = 5
 M = rand(rng, 15, 15, qs...)
-p = UniformTensorTrain(M, L)
-sz = 8
-A = truncate_utt(p, sz; rng, damp=0.5)
-q = UniformTensorTrain(A, L)
-d1 = norm(marginals(q)[1] - marginals(p)[1])
+p = InfiniteUniformTensorTrain(M)
 
+sz = 10
+A = truncate_utt(p, sz; damp=0.8, maxiter=100, showprogress=true, rng)
+q = InfiniteUniformTensorTrain(A)
 
+d = norm(marginals(q)[1] - marginals(p)[1])
+@show d
 
-
-# L = 100
-# M = rand(rng, 15, 15, qs...)
-# p = InfiniteUniformTensorTrain(M)
-
-# sz = 5
-# A = truncate_utt(p, sz; damp=0.5, maxiter=100, showprogress=true, rng)
-# q = InfiniteUniformTensorTrain(A)
-
-# d2 = norm(marginals(q)[1] - marginals(p)[1])
-# @show d2
+A2 = truncate_utt_eigen(p, sz;  damp=0.8, maxiter=100, showprogress=true, rng)
+q2 = InfiniteUniformTensorTrain(A2)
+d2 = norm(marginals(q2)[1] - marginals(p)[1])
 
 # pL = UniformTensorTrain(M, L)
 # AL = truncate_utt(p, sz; damp=0.5, maxiter=100, showprogress=true, rng)
