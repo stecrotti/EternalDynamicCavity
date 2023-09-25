@@ -68,14 +68,6 @@ function LinearAlgebra.tr(G::AbstractFiniteTransferOperator)
     return sum(tr(@view A[:,:,x])*conj(tr(@view M[:,:,x])) for x in axes(A, 3))
 end
 
-function mypow(G::AbstractTransferOperator, k::Integer)
-    Gk = G
-    for _ in 1:k-1
-        Gk = Gk * G
-    end
-    return Gk
-end
-
 function Base.:(^)(G::TransferOperator, k::Integer)
     (; L, R, Λ) = eig(G)
     d = sizes(G)
@@ -159,7 +151,7 @@ end
 
 function LinearAlgebra.tr(G::InfiniteTransferOperator)
     (; l, r, λ) = G
-    return λ * tr(r*l)
+    return λ * tr(l'r)
 end
 
 function infinite_transfer_operator(G::AbstractTransferOperator)
@@ -209,6 +201,7 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
 
         EL = E^(L-1) |> collect |> real
         GL = G^(L-1) |> collect |> real
+        @show GL
 
         @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
         
@@ -241,13 +234,14 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
     for _ in 1:maxiter
         q = InfiniteUniformTensorTrain(A)
-
-        G = transfer_operator(q, p)
+        normalize!(q)
+        G = transfer_operator(p, q)
         E = transfer_operator(q)
         Einfop = infinite_transfer_operator(E)
-        Einf = collect(Einfop) .|> real
+        Einf = collect(Einfop) |> real
         Ginfop = infinite_transfer_operator(G)
-        Ginf = collect(Ginfop) .|> real
+        Ginf = collect(Ginfop) |> real
+        @show Ginf
         @tullio B[b,a,x] := Ginf[b,j,a,l] * Mresh[l,j,x]
         
         @cast Einfresh[(b,a),(j,l)] := Einf[b,j,a,l]
@@ -261,7 +255,7 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
         ε = norm(A - Anew) / sz
         ε < tol && return collect(_reshapeas(A, A0))
         A .= damp * A + (1-damp) * Anew 
-        A ./= sqrt(abs(tr(Einfop)))   # normalize A
+        # A ./= sqrt(abs(tr(Einfop)))   # normalize A
         next!(prog, showvalues=[("ε/tol","$ε/$tol")])
     end
     return collect(_reshapeas(A, A0))

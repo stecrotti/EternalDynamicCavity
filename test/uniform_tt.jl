@@ -27,9 +27,20 @@ end
 G = transfer_operator(p, q)
 @test tr(G^L) ≈ dot(p, q)
 
+# function mypow(G::AbstractTransferOperator, k::Integer)
+#     Gk = G
+#     for _ in 1:k-1
+#         Gk = Gk * G
+#     end
+#     return Gk
+# end
+
+mypow(G::AbstractTransferOperator, k::Integer) = prod(fill(G, k))
+
 for k in ks
     Gk = G^k
     @test collect(mypow(G, k)) ≈ collect(Gk)
+    @test tr(mypow(G, k)) ≈ tr(Gk)
 end
 
 E = transfer_operator(q)
