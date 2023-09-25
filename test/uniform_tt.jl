@@ -15,12 +15,12 @@ qq = deepcopy(q)
 E = transfer_operator(qq)
 η = leading_eig(E)[:λ]
 qq.tensor ./= √η
-Einf = infinite_transfer_operator(E)
+Einf = infinite_transfer_operator(transfer_operator(qq))
 ks = 1:5
 
 diffs = map(ks) do k
     Ek = E^k
-    norm(collect(Ek) - abs.(collect(Einf)))
+    norm(collect(Ek) - real(collect(Einf))) / norm(collect(Ek))
 end
 @test issorted(diffs, rev=true)
 

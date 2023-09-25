@@ -1,7 +1,7 @@
 module MPSExperiments
 
 using TensorTrains
-using MatrixProductBP
+# using MatrixProductBP
 using ExportAll
 using Tullio
 using TensorCast
