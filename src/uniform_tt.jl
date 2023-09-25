@@ -36,8 +36,6 @@ function Base.collect(G::AbstractFiniteTransferOperator)
     return @tullio B[i,j,k,l] := A[i,k,x] * conj(M[j,l,x])
 end
 
-# transfer_operator(q::AbstractUniformTensorTrain) = transfer_operator(q, q)
-
 function Base.:(*)(G::AbstractFiniteTransferOperator, B::AbstractMatrix)
     A, M = get_tensors(G)
     return @tullio C[i,j] := A[i,k,x] * conj(M[j,l,x]) * B[k,l]
@@ -63,7 +61,6 @@ function Base.:(*)(G::T, H::T) where {T<:HomogeneousTransferOperator}
 end
 
 function LinearAlgebra.tr(G::AbstractFiniteTransferOperator)
-    # @tullio t := G[i,j,i,j]
     A, M = get_tensors(G)
     return sum(tr(@view A[:,:,x])*conj(tr(@view M[:,:,x])) for x in axes(A, 3))
 end
@@ -159,6 +156,14 @@ function infinite_transfer_operator(G::AbstractTransferOperator)
     InfiniteTransferOperator(l, r, λ)
 end
 
+function infinite_transfer_operator(p::AbstractUniformTensorTrain, q::AbstractUniformTensorTrain)
+    return infinite_transfer_operator(transfer_operator(p, q))
+end
+
+function infinite_transfer_operator(q::AbstractUniformTensorTrain)
+    return infinite_transfer_operator(transfer_operator(q))
+end
+
 function gradientA!(g, p::AbstractPeriodicTensorTrain, q::AbstractPeriodicTensorTrain)
     @assert size(g) == tuple(size(q.tensor)[1:2]..., prod(size(q.tensor)[3:end]))
     L = length(p)
@@ -201,7 +206,7 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
 
         EL = E^(L-1) |> collect |> real
         GL = G^(L-1) |> collect |> real
-        @show GL
+        # @show GL
 
         @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
         
@@ -234,14 +239,14 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
     for _ in 1:maxiter
         q = InfiniteUniformTensorTrain(A)
-        normalize!(q)
+        q.tensor ./= sqrt(abs(tr(infinite_transfer_operator(q)))) 
         G = transfer_operator(p, q)
         E = transfer_operator(q)
         Einfop = infinite_transfer_operator(E)
         Einf = collect(Einfop) |> real
         Ginfop = infinite_transfer_operator(G)
         Ginf = collect(Ginfop) |> real
-        @show Ginf
+        # @show Ginf
         @tullio B[b,a,x] := Ginf[b,j,a,l] * Mresh[l,j,x]
         
         @cast Einfresh[(b,a),(j,l)] := Einf[b,j,a,l]
@@ -275,7 +280,7 @@ function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer;
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
     for _ in 1:maxiter
         q = InfiniteUniformTensorTrain(A)
-
+        q.tensor ./= sqrt(abs(tr(infinite_transfer_operator(q)))) 
         G = transfer_operator(p, q)
         E = transfer_operator(q)
         eg = leading_eig(G)
@@ -291,7 +296,6 @@ function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer;
         ε = norm(A - Anew) / sz
         ε < tol && return collect(_reshapeas(A, A0))
         A .= damp * A + (1-damp) * Anew 
-        normalize!(q)
         next!(prog, showvalues=[("ε/tol","$ε/$tol")])
     end
     return collect(_reshapeas(A, A0))

@@ -15,14 +15,22 @@ qq = deepcopy(q)
 E = transfer_operator(qq)
 η = leading_eig(E)[:λ]
 qq.tensor ./= √η
+E = transfer_operator(qq)
 Einf = infinite_transfer_operator(transfer_operator(qq))
-ks = 1:5
 
+ks = 1:5
 diffs = map(ks) do k
     Ek = E^k
     norm(collect(Ek) - real(collect(Einf))) / norm(collect(Ek))
 end
 @test issorted(diffs, rev=true)
+
+ks2 = 5:12
+diffs2 = map(ks2) do k
+    Ek = E^k
+    abs(tr(E^k) - tr(Einf)^k)
+end
+@test issorted(diffs2, rev=true)
 
 G = transfer_operator(p, q)
 @test tr(G^L) ≈ dot(p, q)
