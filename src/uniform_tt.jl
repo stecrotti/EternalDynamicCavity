@@ -25,9 +25,6 @@ get_tensors(G::HomogeneousTransferOperator) = (G.A, G.A)
 
 # the first argument `p` is the one with `M` matrices
 function transfer_operator(p::AbstractUniformTensorTrain, q::AbstractUniformTensorTrain)
-    # A = _reshape1(q.tensor)
-    # M = _reshape1(p.tensor)
-    # @tullio G[i,j,k,l] := A[i,k,x] * conj(M[j,l,x])
     return TransferOperator(_reshape1(q.tensor), _reshape1(p.tensor))
 end
 function transfer_operator(q::AbstractUniformTensorTrain)
@@ -90,9 +87,9 @@ function Base.:(^)(G::TransferOperator, k::Integer)
         Gk .+= Gk_
     end
     @cast Gkresh[(i,j),(k,l)] := Gk[i,k,j,l]
-    Q, R = qr(real(Gkresh))
-    A = reshape(Q, d[1], d[3], :) |> collect
-    M = permutedims(reshape(R, :, d[2], d[4]), (2,3,1)) |> collect
+    U, Σ, V = svd(real(Gkresh))
+    A = reshape(U * diagm(sqrt.(Σ)), d[1], d[3], :) |> collect
+    M = permutedims(reshape(diagm(sqrt.(Σ)) * V', :, d[2], d[4]), (2,3,1)) |> collect
     return TransferOperator(A, M)
 end
 
@@ -112,27 +109,6 @@ function Base.:(^)(G::HomogeneousTransferOperator, k::Integer)
     return HomogeneousTransferOperator(A)
 end
 
-# function Base.:(^)(G::AbstractTransferOperator, k::Integer)
-#     (; L, R, Λ) = eig(G)
-#     d = sizes(G)
-#     for (λ, l, r) in zip(Λ, eachrow(L), eachcol(R))
-#         l_ = reshape(l, d[1], d[2])
-#         r_ = reshape(r, d[1], d[2])
-#         @tullio Gk_[i,j,m,n] := λ^k * r_[i,j] * l_[m,n]
-#         Gk .+= Gk_
-#     end
-#     return TransferOperator(Gk)
-# end
-
-# function eig(G::TransferOperator)
-#     (; tensor, L, R, Λ) = G
-#     λ = first(Λ)
-#     # d = Int(sqrt(length(Λ)))
-#     d = size(G.tensor)
-#     r = reshape(R[:,1], d[1], d[2])
-#     l = reshape(L[1,:], d[1], d[2])
-#     (; l, r, λ)
-# end
 function eig(G::AbstractTransferOperator)
     GG = collect(G)
     @cast Gresh[(i,j),(k,l)] := GG[i,j,k,l]
@@ -226,15 +202,14 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
     for it in 1:maxiter
         q = UniformTensorTrain(A, L)
-        # normalize!(q)
+        normalize!(q)
         # q.tensor ./= norm(q)
-        G = transfer_operator(q, p)
+        G = transfer_operator(p, q)
         E = transfer_operator(q)
 
-        # EL = prod(fill(E, L-1)).tensor
-        # GL = prod(fill(G, L-1)).tensor
-        EL = E^(L-1) |> collect .|> real
-        GL = G^(L-1) |> collect .|> real
+        EL = E^(L-1) |> collect |> real
+        GL = G^(L-1) |> collect |> real
+
         @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
         
         @cast ELresh[(b,a),(j,l)] := EL[b,j,a,l]
@@ -245,11 +220,11 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
             Anew[:,:,x] = reshape(k, Int(sqrt(length(k))), :)'
         end
 
-        normalize!(q)
         ε = norm(A - Anew) / sz
         ε < tol && return collect(_reshapeas(A, A0))
         A .= damp * A + (1-damp) * Anew 
-        next!(prog, showvalues=[("ε/tol","$ε/$tol"), ("∑ₓ(q-p)²", norm2m(q,p))])
+        # next!(prog, showvalues=[("ε/tol","$ε/$tol"), ("∑ₓ(q-p)²", norm2m(q,p))])
+        next!(prog, showvalues=[("ε/tol","$ε/$tol")])
     end
     return collect(_reshapeas(A, A0))
 end
@@ -307,7 +282,7 @@ function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer;
     for _ in 1:maxiter
         q = InfiniteUniformTensorTrain(A)
 
-        G = transfer_operator(q, p)
+        G = transfer_operator(p, q)
         E = transfer_operator(q)
         eg = leading_eig(G)
         V = eg[:l] |> real; U = eg[:r] |> real
