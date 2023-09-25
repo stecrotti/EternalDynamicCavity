@@ -1,39 +1,30 @@
 rng = MersenneTwister(0)
-L = 10
-q = UniformTensorTrain(rand(rng, 2,2,3,4), L)
-p = UniformTensorTrain(rand(rng, 2,2,3,4), L)
+L = 6
+A = rand(rng, 2,2,3,4)
+M = rand(rng, 3,3,3,4)
+q = UniformTensorTrain(A, L)
+p = UniformTensorTrain(M, L)
 
 G = transfer_operator(q, p)
 
-(; l, r, λ) = eig(G)
+(; l, r, λ) = leading_eig(G)
 @test l * G ≈ l * λ
 @test G * r ≈ λ * r
 
-q.tensor ./= sqrt(λ)
-p.tensor ./= sqrt(λ)
-G = transfer_operator(q, p)
+qq = deepcopy(q)
+E = transfer_operator(qq)
+η = leading_eig(E)[:λ]
+qq.tensor ./= √η
+Einf = infinite_transfer_operator(E)
+ks = 1:5
+diffs = map(ks) do k
+    Ek = E^k
+    norm(collect(Ek) - abs.(collect(Einf)))
+end
+@test issorted(diffs, rev=true)
 
-G = transfer_operator(q)
+G = transfer_operator(p, q)
+@test tr(G^L) ≈ dot(p, q)
 
-# Ginf = infinite_power(G; e = (; l, r, λ))
-# ks = 1:20
-# diffs = map(ks) do k
-#     Gk = G^k
-#     norm(Gk - abs.(Ginf.tensor))
-# end
-
-# using UnicodePlots
-# lineplot(ks, diffs, xlabel="k", ylabel="err", yscale=:log10)
-
-# @test tr(G^L) ≈ dot(p, q)
-
-# E = transfer_operator(q)
-# @test tr(E^L) ≈ norm(q)
-
-# using BenchmarkTools, ProgressMeter
-# ks = 1:15
-# map(ks) do k
-#     @test (G^k).tensor ≈ slowpow(G, k).tensor
-# end
-
-
+E = transfer_operator(q)
+@test tr(E^L) ≈ norm(q)^2

@@ -2,7 +2,7 @@ using ForwardDiff: gradient
 using FiniteDifferences
 
 rng = MersenneTwister(0)
-L = 2
+L = 5
 A = rand(rng, 2,2,3,4)
 C = rand(rng, 3,3,3,4)
 q = UniformTensorTrain(A, L)
@@ -23,7 +23,7 @@ G = transfer_operator(q, p)
 @test mydot(x) ≈ tr(G^L)
 
 # GL = prod(fill(G, L-1)).tensor
-GL = (G^(L-1)).tensor
+GL = collect((G^(L-1)))
 @tullio g[a,b,x,y] := GL[b,j,a,l] * C[l,j,x,y] *($L)
 @test g ≈ g_forw
 
@@ -38,7 +38,7 @@ g_forw = reshape(gradient(mynorm, x), size(A))
 E = transfer_operator(q)
 @test mynorm(x) ≈ tr(E^L)
 
-EL = (E^(L-1)).tensor
+EL = collect((E^(L-1)))
 # EL = prod(fill(E, L-1)).tensor
 @tullio g[a,b,x,y] := EL[b,j,a,l] * A[l,j,x,y] * 2*($L)
 @test g ≈ g_forw

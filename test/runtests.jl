@@ -3,8 +3,10 @@ using Test
 
 using TensorTrains, Random, Tullio, TensorCast, ProgressMeter
 
-# @testset "Uniform Tensor Train" begin
-    # include("uniform_tt.jl")
+@testset "Uniform Tensor Train - basics" begin
+    include("uniform_tt.jl")
+end
+
+@testset "Uniform Tensor Train - derivatives" begin
     include("uniform_tt_derivatives.jl")
-    include("variational_opt.jl")
-# end
+end
