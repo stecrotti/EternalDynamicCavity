@@ -11,10 +11,10 @@ w = HomogeneousGlauberFactor(J, h, β)
 
 function iterate_A(w::HomogeneousGlauberFactor, sz::Integer;
         maxiter=50, tol=1e-3, damp=0.5,
-        maxiter_inner=200, tol_inner=1e-5, damp_inner=0.8)
+        maxiter_inner=200, tol_inner=1e-5, damp_inner=0.8,
+        A0 = ones(sz, sz, 2, 2))
     εs = fill(NaN, maxiter)
-    ms = fill(NaN, maxiter)
-    A = rand(sz, sz, 2, 2)
+    A = copy(A0)
     for it in 1:maxiter
         @tullio BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹] := 
             w(xᵢᵗ⁺¹,[xⱼᵗ,xₖᵗ,xₗᵗ],xᵢᵗ)*A[m1,n1,xₖᵗ,xᵢᵗ]*A[m2,n2,xₗᵗ,xᵢᵗ] (xⱼᵗ in 1:2, xᵢᵗ⁺¹ in 1:2)
@@ -47,14 +47,26 @@ function belief(A, w::HomogeneousGlauberFactor)
     Anew
 end
 
-sz = 5  
-A, maxiter, εs = iterate_A(w, sz; damp=0.0, maxiter=10, damp_inner=0, maxiter_inner=50)
-lineplot(εs, yscale=:log10) |> display
-q = InfiniteUniformTensorTrain(A)
-marginals(q)[1]
+# sz = 5  
+# A, maxiter, εs = iterate_A(w, sz; damp=0.0, maxiter=20, damp_inner=0, maxiter_inner=50)
+# lineplot(εs, yscale=:log10) |> display
+# q = InfiniteUniformTensorTrain(A)
+# marginals(q)[1]
 
-b = belief(A, w)
-m = reduce(-, marginals(InfiniteUniformTensorTrain(b))[1])
+# b = belief(A, w)
+# m = reduce(-, marginals(InfiniteUniformTensorTrain(b))[1])
+
+sizes = 1:6
+ms = map(sizes) do sz
+    println("######\n\tSize $sz\n######")
+    A, maxiter, εs = iterate_A(w, sz; damp=0.0, maxiter=20, damp_inner=0, maxiter_inner=50)
+    lineplot(εs, yscale=:log10) |> display
+    q = InfiniteUniformTensorTrain(A)
+    marginals(q)[1]
+
+    b = belief(A, w)
+    m = reduce(-, marginals(InfiniteUniformTensorTrain(b))[1])
+end
 
 # sz = 3
 # A = rand(sz, sz, 2, 2)

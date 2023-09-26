@@ -300,3 +300,22 @@ function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer;
     end
     return collect(_reshapeas(A, A0))
 end
+
+function truncate_eachtensor(q::T, bond_dim::Integer) where {T<:AbstractUniformTensorTrain}
+    fns = fieldnames(T)
+    prop = (getproperty(q, fn) for fn in fns)
+    A = first(prop)
+    qs = size(A)[3:end]
+    B = zeros(bond_dim, bond_dim, qs...)
+    for x in Iterators.product((1:q for q in qs)...)
+        U, Σ, V = svd(A[:,:,x...])
+        B[:,:,x...] .= diagm(Σ[1:bond_dim]) * V[:,1:bond_dim]' * U[:,1:bond_dim]
+    end
+    return T(B, Iterators.drop(prop, 1)...)
+end
+
+# function orthogonalize_left!(q::UniformTensorTrain)
+#     (; l, r, λ) = infinite_transfer_operator(q)
+#     Aresh = _reshape1(q.A)
+#     @tullio AL[i,j,x] := 
+# end
