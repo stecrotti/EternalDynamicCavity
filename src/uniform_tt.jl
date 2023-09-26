@@ -200,13 +200,11 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
     for it in 1:maxiter
         q = UniformTensorTrain(A, L)
         normalize!(q)
-        # q.tensor ./= norm(q)
         G = transfer_operator(p, q)
         E = transfer_operator(q)
 
         EL = E^(L-1) |> collect |> real
         GL = G^(L-1) |> collect |> real
-        # @show GL
 
         @tullio B[b,a,x] := GL[b,j,a,l] * Mresh[l,j,x]
         
@@ -253,7 +251,9 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
         @cast Bresh[(b,a), x] := B[b,a,x]
         
         for x in axes(Anew, 3)
-            k = Einfresh \ Bresh[:,x]
+            # k = Einfresh \ Bresh[:,x]
+            # k = pinv(Einfresh) * Bresh[:,x]
+            k = qr(Einfresh, ColumnNorm()) \ Bresh[:,x]
             Anew[:,:,x] = reshape(k, Int(sqrt(length(k))), :)'
         end
 
