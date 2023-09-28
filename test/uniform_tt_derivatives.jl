@@ -1,6 +1,3 @@
-using ForwardDiff: gradient
-using FiniteDifferences
-
 rng = MersenneTwister(0)
 L = 10
 A = rand(rng, 2,2,12)

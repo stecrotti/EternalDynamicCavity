@@ -212,7 +212,8 @@ function truncate_utt(p::UniformTensorTrain, sz::Integer;
         @cast Bresh[(b,a), x] := B[b,a,x]
         
         for x in axes(Anew, 3)
-            k = ELresh \ Bresh[:,x]
+            # k = ELresh \ Bresh[:,x]
+            k = qr(ELresh, ColumnNorm()) \ Bresh[:,x]
             Anew[:,:,x] = reshape(k, Int(sqrt(length(k))), :)'
         end
 
@@ -302,20 +303,55 @@ function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer;
 end
 
 function truncate_eachtensor(q::T, bond_dim::Integer) where {T<:AbstractUniformTensorTrain}
-    fns = fieldnames(T)
+    fns = Iterators.drop(fieldnames(T), 1)
     prop = (getproperty(q, fn) for fn in fns)
-    A = first(prop)
-    qs = size(A)[3:end]
-    B = zeros(bond_dim, bond_dim, qs...)
-    for x in Iterators.product((1:q for q in qs)...)
-        U, Σ, V = svd(A[:,:,x...])
-        B[:,:,x...] .= diagm(Σ[1:bond_dim]) * V[:,1:bond_dim]' * U[:,1:bond_dim]
-    end
-    return T(B, Iterators.drop(prop, 1)...)
+    A_ = _reshape1(q.tensor)
+    @cast A[i, (j,x)] := A_[i,j,x]
+    U, λ, V = TruncBond(bond_dim)(Matrix(A))
+    Vt = reshape(V', size(V', 1), :, size(A_, 3))
+    @tullio B[i,j,x] := Vt[i,k,x] * U[k,j] * λ[j]  
+    @show B
+    return T(collect(_reshapeas(B, q.tensor)), prop...)
 end
 
-# function orthogonalize_left!(q::UniformTensorTrain)
-#     (; l, r, λ) = infinite_transfer_operator(q)
-#     Aresh = _reshape1(q.A)
-#     @tullio AL[i,j,x] := 
-# end
+function _L(q::T) where {T<:AbstractUniformTensorTrain}
+    (; l, r, λ) = infinite_transfer_operator(q)
+    if all(real(e) ≤ 0 for e in eigvals(l))
+        l .*= -1
+    end
+    # @assert l ≈ Hermitian(l) "A=$A"
+    # @assert isposdef(Hermitian(l)) "A=$A"
+    c = cholesky(Hermitian(l); check=false)
+    return real(c.U)
+end
+
+function TensorTrains.orthogonalize_left!(q::T) where {T<:AbstractUniformTensorTrain}
+    A = q.tensor
+    L = _L(q)
+    Linv = inv(L)
+    for x in Iterators.product((1:q for q in size(A)[3:end])...)
+        A[:,:,x...] .= L * A[:,:,x...] * Linv
+    end
+    return q
+end
+
+function _R(q::T) where {T<:AbstractUniformTensorTrain}
+    (; l, r, λ) = infinite_transfer_operator(q)
+    if all(real(e) ≤ 0 for e in eigvals(r))
+        r .*= -1
+    end
+    # @assert l ≈ Hermitian(l) "A=$A"
+    # @assert isposdef(Hermitian(l)) "A=$A"
+    c = cholesky(Hermitian(r); check=false)
+    return  real(c.L)
+end
+
+function TensorTrains.orthogonalize_right!(q::T) where {T<:AbstractUniformTensorTrain}
+    A = q.tensor
+    R = _R(q)
+    Rinv = inv(R)
+    for x in Iterators.product((1:q for q in size(A)[3:end])...)
+        A[:,:,x...] .= Rinv * A[:,:,x...] * R
+    end
+    return q
+end
