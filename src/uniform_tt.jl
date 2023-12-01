@@ -108,21 +108,22 @@ function eig(G::AbstractTransferOperator)
     return (; L, R, Λ)
 end
 
-function leading_eig_new(G::AbstractTransferOperator)
+function leading_eig(G::AbstractTransferOperator)
     GG = collect(G)
     @cast B[(i,j),(k,l)] := GG[i,j,k,l]
     valsR, vecsR = eigsolve(B)
-    valsL, vecsL = eigsolve(B')
-    @assert valsR ≈ valsL
+    valsL, vecsL = eigsolve(transpose(B))
+    @assert valsR[1] ≈ valsL[1] "$(valsR[1]), $(valsL[1])"
     λ = valsL[1]
     L = vecsL[1]
     R = vecsR[1]
     d = sizes(G)
     r = reshape(R, d[1], d[2])
     l = reshape(L, d[1], d[2])
+    l ./= dot(l, r)
     return (; l, r, λ)
 end
-function leading_eig(G::AbstractTransferOperator)
+function leading_eig_old(G::AbstractTransferOperator)
     L, R, Λ = eig(G)
     λ = first(Λ)
     d = sizes(G)
@@ -176,6 +177,11 @@ end
 
 function infinite_transfer_operator(q::AbstractUniformTensorTrain)
     return infinite_transfer_operator(transfer_operator(q))
+end
+
+function LinearAlgebra.dot(p::InfiniteUniformTensorTrain, q::InfiniteUniformTensorTrain)
+    G = infinite_transfer_operator(p, q)
+    return tr(G)
 end
 
 function gradientA!(g, p::AbstractPeriodicTensorTrain, q::AbstractPeriodicTensorTrain)

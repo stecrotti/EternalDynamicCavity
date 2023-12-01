@@ -1,5 +1,3 @@
-using MPSKit, TensorKit
-
 function truncate_vumps(A::InfiniteUniformTensorTrain{F,3}, d::Integer) where F<:Number
     tensor = A.tensor
     t = complex.(permutedims(tensor, (1,3,2)))
