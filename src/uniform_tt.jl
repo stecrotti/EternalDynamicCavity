@@ -108,6 +108,20 @@ function eig(G::AbstractTransferOperator)
     return (; L, R, Λ)
 end
 
+function leading_eig_new(G::AbstractTransferOperator)
+    GG = collect(G)
+    @cast B[(i,j),(k,l)] := GG[i,j,k,l]
+    valsR, vecsR = eigsolve(B)
+    valsL, vecsL = eigsolve(B')
+    @assert valsR ≈ valsL
+    λ = valsL[1]
+    L = vecsL[1]
+    R = vecsR[1]
+    d = sizes(G)
+    r = reshape(R, d[1], d[2])
+    l = reshape(L, d[1], d[2])
+    return (; l, r, λ)
+end
 function leading_eig(G::AbstractTransferOperator)
     L, R, Λ = eig(G)
     λ = first(Λ)

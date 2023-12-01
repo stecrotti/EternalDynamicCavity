@@ -1,6 +1,7 @@
 module MPSExperiments
 
 using TensorTrains
+import TensorTrains: AbstractUniformTensorTrain, UniformTensorTrain, InfiniteUniformTensorTrain
 # using MatrixProductBP
 using ExportAll
 using Tullio
@@ -9,6 +10,9 @@ using Random
 using LinearAlgebra
 using Lazy: @forward
 using ProgressMeter
+using KrylovKit
+using TensorKit
+using MPSKit
 
 import TensorTrains: _reshape1, _reshapeas
 

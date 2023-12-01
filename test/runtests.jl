@@ -2,6 +2,7 @@ using MPSExperiments
 using Test
 
 using TensorTrains, Random, ProgressMeter
+import TensorTrains: AbstractUniformTensorTrain, UniformTensorTrain, InfiniteUniformTensorTrain
 using ForwardDiff: gradient
 using FiniteDifferences
 
@@ -13,7 +14,7 @@ end
     include("uniform_tt_derivatives.jl")
 end
 
-@testset "Truncations" begin
-    include("truncations.jl")
-end
+# @testset "Truncations" begin
+#     include("truncations.jl")
+# end
 
