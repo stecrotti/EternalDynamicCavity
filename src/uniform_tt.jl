@@ -256,7 +256,7 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
     Mresh = _reshape1(M)
 
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
-    for _ in 1:maxiter
+    for it in 1:maxiter
         q = InfiniteUniformTensorTrain(A)
         q.tensor ./= sqrt(abs(tr(infinite_transfer_operator(q)))) 
         G = transfer_operator(p, q)
@@ -282,7 +282,7 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
         ε < tol && return collect(_reshapeas(A, A0))
         A .= damp * A + (1-damp) * Anew 
         # A ./= sqrt(abs(tr(Einfop)))   # normalize A
-        next!(prog, showvalues=[("ε/tol","$ε/$tol")])
+        next!(prog, showvalues=[("ε/tol","$ε/$tol"), ("it/maxiter", "$it/$maxiter")])
     end
     return collect(_reshapeas(A, A0))
 end

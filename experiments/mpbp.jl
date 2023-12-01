@@ -7,7 +7,7 @@ using ProgressMeter
 
 J = 0.2
 β = 1.0
-h = 0.1
+h = 0.2
 w = HomogeneousGlauberFactor(J, h, β)
 
 function iterate_A(w::HomogeneousGlauberFactor, sz::Integer;
@@ -121,10 +121,10 @@ end
 
 sizes = 1:4
 # ms = map(sizes) do sz
-    sz = 10
+    sz = 5
     println("######\n\tSize $sz\n######")
-    A, maxiter, εs, ds, margq, margp = iterate_A(w, sz; damp=0.0, maxiter=10, 
-        damp_inner=0.0, maxiter_inner=40)
+    A, maxiter, εs, ds, margq, margp = iterate_A(w, sz; damp=0.0, maxiter=30, 
+        damp_inner=0.95, maxiter_inner=100)
     lineplot(εs, yscale=:log10, title ="Convergence error") |> display
     lineplot(ds, yscale=:log10, title = "Truncation error") |> display
     q = InfiniteUniformTensorTrain(A)
