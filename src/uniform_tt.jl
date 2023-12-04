@@ -140,7 +140,7 @@ end
 
 function Base.collect(G::InfiniteTransferOperator)
     (; l, r, λ) = G
-    return @tullio B[i,j,k,m] := r[i,j] * l[k,m] * λ
+    return @tullio B[i,j,k,m] := r[i,j] * l[k,m]
 end
 
 function sizes(G::InfiniteTransferOperator)
@@ -163,11 +163,12 @@ end
 
 function LinearAlgebra.tr(G::InfiniteTransferOperator)
     (; l, r, λ) = G
-    return λ * tr(l'r)
+    return tr(l'r)
 end
 
-function infinite_transfer_operator(G::AbstractTransferOperator)
-    l, r, λ = leading_eig(G)
+function infinite_transfer_operator(G::AbstractTransferOperator; lambda1::Bool=false)
+    l, r, λ_ = leading_eig(G)
+    λ = lambda1 ? one(λ_) : λ_
     InfiniteTransferOperator(l, r, λ)
 end
 
@@ -181,8 +182,17 @@ end
 
 function LinearAlgebra.dot(p::InfiniteUniformTensorTrain, q::InfiniteUniformTensorTrain)
     G = infinite_transfer_operator(p, q)
-    return tr(G)
+    return G.λ
 end
+
+# function LinearAlgebra.mul!(Y, A::InfiniteTransferOperator, B::AbstractVector)
+#     Y .= vec(A.r) * dot(A.l, reshape(B, size(A.l)))
+# end
+function Base.:(*)(A::InfiniteTransferOperator, B::AbstractVector)
+    vec(A.r) * dot(A.l, reshape(B, size(A.l)))
+end
+
+(A::InfiniteTransferOperator)(B::AbstractVector) = A * B
 
 function gradientA!(g, p::AbstractPeriodicTensorTrain, q::AbstractPeriodicTensorTrain)
     @assert size(g) == tuple(size(q.tensor)[1:2]..., prod(size(q.tensor)[3:end]))
@@ -258,7 +268,6 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
     prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
     for it in 1:maxiter
         q = InfiniteUniformTensorTrain(A)
-        q.tensor ./= sqrt(abs(tr(infinite_transfer_operator(q)))) 
         G = transfer_operator(p, q)
         E = transfer_operator(q)
         Einfop = infinite_transfer_operator(E)
@@ -285,6 +294,42 @@ function truncate_utt(p::InfiniteUniformTensorTrain, sz::Integer;
         next!(prog, showvalues=[("ε/tol","$ε/$tol"), ("it/maxiter", "$it/$maxiter")])
     end
     return collect(_reshapeas(A, A0))
+end
+
+function truncate_variational(p::InfiniteUniformTensorTrain, sz::Integer; 
+        A0 = truncate_eachtensor(p, sz).tensor,
+        # A0 = rand(sz, sz, size(p.tensor)[3:end]...),
+        maxiter = 200, tol=1e-8, showprogress=true)
+
+    A = _reshape1(copy(A0))
+    q = InfiniteUniformTensorTrain(A)
+    Anew = zeros(size(A))
+    M = _reshape1(p.tensor)
+
+    # prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
+    for it in 1:maxiter
+        GT = infinite_transfer_operator(q, p)
+        ET = infinite_transfer_operator(q)
+        lG = GT.l; rG = GT.r
+        lE = ET.l; rE = ET.r
+        
+        for x in axes(Anew, 3)
+            b = vec( transpose(rG) * transpose(M[:,:,x]) * lG )
+            f(a) = vec( transpose(rE) * transpose(reshape(a, size(@view A[:,:,x]))) * lE ) 
+            A_, info = linsolve(f, b, vec(A[:,:,x]))
+            # @show info
+            Anew[:,:,x] = reshape(A_, size(@view A[:,:,x])) |> real
+        end       
+
+        # @show A - Anew
+        ε = norm(A - Anew) / sz 
+        showprogress && println("Iter $it/$maxiter: ε=$ε/$tol")
+        ε < tol && return _reshapeas(A, A0) |> collect |> InfiniteUniformTensorTrain
+        A, Anew = Anew, A
+        # next!(prog, showvalues=[("ε/tol","$ε/$tol")])
+    end
+    
+    return _reshapeas(A, A0) |> collect |> InfiniteUniformTensorTrain
 end
 
 function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer; 
@@ -327,10 +372,12 @@ function truncate_eachtensor(q::T, bond_dim::Integer) where {T<:AbstractUniformT
     prop = (getproperty(q, fn) for fn in fns)
     A_ = _reshape1(q.tensor)
     @cast A[i, (j,x)] := A_[i,j,x]
-    U, λ, V = TruncBond(bond_dim)(Matrix(A))
-    Vt = reshape(V', size(V', 1), :, size(A_, 3))
-    @tullio B[i,j,x] := Vt[i,k,x] * U[k,j] * λ[j]  
-    @show B
+    # U, λ, V = TruncBond(bond_dim)(Matrix(A))
+    # Vt = reshape(V', size(V', 1), :, size(A_, 3))
+    # @tullio B[i,j,x] := Vt[i,k,x] * U[k,j] * λ[j]  
+    Q, R = qr(Matrix(A))
+    R_ = reshape(R, size(R, 1), :, size(A_, 3))
+    @tullio B[i,j,x] := R_[i,k,x] * Q[k,j]
     return T(collect(_reshapeas(B, q.tensor)), prop...)
 end
 
