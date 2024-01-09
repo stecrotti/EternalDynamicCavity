@@ -1,12 +1,12 @@
-abstract type AbstractTransferOperator{F<:Number} end
-abstract type AbstractFiniteTransferOperator{F<:Number} <: AbstractTransferOperator{F} end
+abstract type AbstractTransferOperator{F1<:Number,F2<:Number} end
+abstract type AbstractFiniteTransferOperator{F1<:Number,F2<:Number} <: AbstractTransferOperator{F1,F2} end
 
-struct TransferOperator{F<:Number} <: AbstractFiniteTransferOperator{F}
-    A :: Array{F,3}
-    M :: Array{F,3}
+struct TransferOperator{F1<:Number,F2<:Number} <: AbstractFiniteTransferOperator{F1,F2}
+    A :: Array{F1,3}
+    M :: Array{F2,3}
 end
 
-struct HomogeneousTransferOperator{F<:Number} <: AbstractFiniteTransferOperator{F}
+struct HomogeneousTransferOperator{F<:Number} <: AbstractFiniteTransferOperator{F,F}
     A :: Array{F,3}
 end
 
@@ -113,7 +113,7 @@ function leading_eig(G::AbstractTransferOperator)
     @cast B[(i,j),(k,l)] := GG[i,j,k,l]
     valsR, vecsR = eigsolve(B)
     valsL, vecsL = eigsolve(transpose(B))
-    @assert valsR[1] ≈ valsL[1] "$(valsR[1]), $(valsL[1])"
+    valsR[1] ≈ valsL[1] || @warn "Leading eigenvalue for A and Aᵀ not equal, got $(valsR[1]) and $(valsL[1])"
     λ = valsL[1]
     L = vecsL[1]
     R = vecsR[1]
@@ -132,7 +132,7 @@ function leading_eig_old(G::AbstractTransferOperator)
     return (; l, r, λ)
 end
 
-struct InfiniteTransferOperator{F<:Number,M<:AbstractMatrix{F}} <: AbstractTransferOperator{F}
+struct InfiniteTransferOperator{F<:Number,M<:AbstractMatrix{F}} <: AbstractTransferOperator{F,F}
     l :: M
     r :: M
     λ :: F
@@ -180,9 +180,11 @@ function infinite_transfer_operator(q::AbstractUniformTensorTrain)
     return infinite_transfer_operator(transfer_operator(q))
 end
 
-function LinearAlgebra.dot(p::InfiniteUniformTensorTrain, q::InfiniteUniformTensorTrain)
-    G = infinite_transfer_operator(p, q)
-    return G.λ
+function LinearAlgebra.dot(p::InfiniteUniformTensorTrain, q::InfiniteUniformTensorTrain;
+        G = infinite_transfer_operator(p, q),
+        Ep = infinite_transfer_operator(p),
+        Eq = infinite_transfer_operator(q))
+    return G.λ / sqrt(abs(Ep.λ*Eq.λ))
 end
 
 # function LinearAlgebra.mul!(Y, A::InfiniteTransferOperator, B::AbstractVector)
@@ -299,11 +301,16 @@ end
 function truncate_variational(p::InfiniteUniformTensorTrain, sz::Integer; 
         A0 = truncate_eachtensor(p, sz).tensor,
         # A0 = rand(sz, sz, size(p.tensor)[3:end]...),
-        maxiter = 200, tol=1e-8, showprogress=true)
+        maxiter = 200, tol=1e-12, showprogress=true)
 
     A = _reshape1(copy(A0))
     q = InfiniteUniformTensorTrain(A)
-    Anew = zeros(size(A))
+
+    Anew = deepcopy(A)
+    qnew = InfiniteUniformTensorTrain(Anew)
+    ds = fill(complex(NaN), maxiter + 1); ds[1] = dot(qnew, p)
+    εs = fill(NaN, maxiter + 1); εs[1] = Inf 
+
     M = _reshape1(p.tensor)
 
     # prog = Progress(maxiter, dt = showprogress ? 0.1 : Inf)
@@ -317,19 +324,23 @@ function truncate_variational(p::InfiniteUniformTensorTrain, sz::Integer;
             b = vec( transpose(rG) * transpose(M[:,:,x]) * lG )
             f(a) = vec( transpose(rE) * transpose(reshape(a, size(@view A[:,:,x]))) * lE ) 
             A_, info = linsolve(f, b, vec(A[:,:,x]))
-            # @show info
+            # info.converged == 0 && @warn "$info"
             Anew[:,:,x] = reshape(A_, size(@view A[:,:,x])) |> real
         end       
 
-        # @show A - Anew
-        ε = norm(A - Anew) / sz 
-        showprogress && println("Iter $it/$maxiter: ε=$ε/$tol")
-        ε < tol && return _reshapeas(A, A0) |> collect |> InfiniteUniformTensorTrain
+        # normalize!(qnew)
+        # Anew ./= maximum(abs, Anew)
+        # @show Anew
+        εs[it+1] = ε = norm(A - Anew) / sz 
+        ds[it+1] = dot(qnew, p)
+        δd = abs(ds[it+1] - ds[it])
+        showprogress && println("Iter $it/$maxiter: ε=$ε/$tol, δd=$δd")
+        ε < tol && return _reshapeas(A, A0) |> collect |> InfiniteUniformTensorTrain, εs, ds
         A, Anew = Anew, A
         # next!(prog, showvalues=[("ε/tol","$ε/$tol")])
     end
-    
-    return _reshapeas(A, A0) |> collect |> InfiniteUniformTensorTrain
+    @warn "Variational truncation did not converge"
+    return _reshapeas(A, A0) |> collect |> InfiniteUniformTensorTrain, εs, ds
 end
 
 function truncate_utt_eigen(p::InfiniteUniformTensorTrain, sz::Integer; 
@@ -372,12 +383,9 @@ function truncate_eachtensor(q::T, bond_dim::Integer) where {T<:AbstractUniformT
     prop = (getproperty(q, fn) for fn in fns)
     A_ = _reshape1(q.tensor)
     @cast A[i, (j,x)] := A_[i,j,x]
-    # U, λ, V = TruncBond(bond_dim)(Matrix(A))
-    # Vt = reshape(V', size(V', 1), :, size(A_, 3))
-    # @tullio B[i,j,x] := Vt[i,k,x] * U[k,j] * λ[j]  
-    Q, R = qr(Matrix(A))
-    R_ = reshape(R, size(R, 1), :, size(A_, 3))
-    @tullio B[i,j,x] := R_[i,k,x] * Q[k,j]
+    U, λ, V = TruncBond(bond_dim*size(A_, 3))(Matrix(A))
+    Vt = reshape(V', size(V', 1), :, size(A_, 3))
+    @tullio B[i,j,x] := Vt[i,k,x] * U[k,j] * λ[j]  
     return T(collect(_reshapeas(B, q.tensor)), prop...)
 end
 
@@ -421,4 +429,12 @@ function TensorTrains.orthogonalize_right!(q::T) where {T<:AbstractUniformTensor
         A[:,:,x...] .= Rinv * A[:,:,x...] * R
     end
     return q
+end
+
+function TensorTrains.dot(p::UniformTensorTrain, q::UniformTensorTrain)
+    @assert p.L == q.L
+    G = transfer_operator(p, q)
+    G_ = collect(G)
+    Gr = reshape(G_, fill(size(G.A, 1)*size(G.M, 1), 2)...)
+    return tr(Gr^(p.L))
 end

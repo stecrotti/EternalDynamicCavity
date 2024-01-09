@@ -11,8 +11,6 @@ using LinearAlgebra
 using Lazy: @forward
 using ProgressMeter
 using KrylovKit
-using TensorKit
-using MPSKit
 
 import TensorTrains: _reshape1, _reshapeas
 
