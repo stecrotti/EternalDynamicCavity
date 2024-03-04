@@ -143,6 +143,6 @@ bds = fill(NaN, maxiter)
 beliefs = [complex.([NaN,NaN]) for _ in 1:maxiter]
 A0 = reshape([0.31033984998979236 0.31033984998979214; 0.18966015001020783 0.1896601500102077], 1,1,2,2)
 
-using Profile
-Profile.clear()
-@profview A, iters = iterate_bp_vidal(f, d; A0, tol=1e-6, maxiter, errs, ovls, εs, bds, beliefs);
+# using Profile
+# Profile.clear()
+#=@profview=# A, iters = iterate_bp_vidal(f, d; A0, tol=1e-6, maxiter, errs, ovls, εs, bds, beliefs);

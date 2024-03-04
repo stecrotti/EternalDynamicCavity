@@ -3,7 +3,7 @@ using KrylovKit: eigsolve
 using LinearAlgebra
 using ProgressMeter
 using Random, TensorCast
-using Plots
+using Plots, LaTeXStrings
 using Base.Threads
 
 
@@ -80,8 +80,8 @@ end
 const SUSCEPTIBLE = 1 
 const INFECTIOUS = 2
 
-λ_ = 0.1
-ρ_ = 0.05
+λ_ = 0.2        # rate of transmission
+ρ_ = 0.1        # rate of recovery
 
 function f(λ, ρ, xᵢᵗ⁺¹, xₙᵢᵗ, xᵢᵗ)
     @assert xᵢᵗ⁺¹ ∈ 1:2
@@ -103,16 +103,15 @@ function f(λ, ρ, xᵢᵗ⁺¹, xₙᵢᵗ, xᵢᵗ)
     end
 end
 
-function iterate_bp_vidal(f::Function, sz::Integer;
+function iterate_bp_vidal!(A, f::Function, sz::Integer;
     maxiter=50, tol=1e-3,
-    A0 = ones(1, 1, 2, 2) .+ 1e-5 .* rand.(),
     errs = fill(NaN, maxiter),
     ovls = fill(NaN, maxiter),
     εs = fill(NaN, maxiter),
     bds = fill(NaN, maxiter),
     beliefs = [complex.([NaN,NaN]) for _ in 1:maxiter])
-A = copy(A0)
-marg = fill(1/4, 4)
+
+    marg = fill(1/4, 4)
 
 @showprogress for it in 1:maxiter
     @tullio BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹] := 
@@ -138,7 +137,7 @@ marg = fill(1/4, 4)
     A = reshape(q.tensor, size(q.tensor, 1), size(q.tensor, 2), 2, 2)
     b = belief(A)
     beliefs[it] .= b ./ sum(b)
-    εs[it] < tol && return A, maxiter, εs, errs, ovls, bds, beliefs
+    εs[it] < tol && return A, it, εs, errs, ovls, bds, beliefs
 end
 return A, maxiter, εs, errs, ovls, bds, beliefs
 end
@@ -149,15 +148,35 @@ end
 
 belief(A) = sum(pair_belief(A), dims=(1,2,3)) |> vec
 
-d = 6
-maxiter = 10
-errs = fill(NaN, maxiter)
-ovls = fill(NaN, maxiter)
-εs = fill(NaN, maxiter)
-bds = fill(NaN, maxiter)
-beliefs = [complex.([NaN,NaN]) for _ in 1:maxiter]
-A0 = reshape([0.31033984998979236 0.31033984998979214; 0.18966015001020783 0.1896601500102077], 1,1,2,2)
+# d = 8
+# maxiter = 10
+# errs = fill(NaN, maxiter)
+# ovls = fill(NaN, maxiter)
+# εs = fill(NaN, maxiter)
+# bds = fill(NaN, maxiter)
+# beliefs = [complex.([NaN,NaN]) for _ in 1:maxiter]
+# A = reshape([0.111609  0.111609;  0.388391  0.388391], 1,1,2,2)
 
-A, iters = iterate_bp_vidal(f, d; tol=1e-6, maxiter, errs, ovls, εs, bds, beliefs)
+# A, iters = iterate_bp_vidal!(A, f, d; tol=1e-6, maxiter, errs, ovls, εs, bds, beliefs)
 
-plot([real(b[1]) for b in beliefs]);
+ds = 2:3:13
+maxiter = 50
+
+pls = map(eachindex(ds)) do a
+    d = ds[a]
+    errs = fill(NaN, maxiter)
+    ovls = fill(NaN, maxiter)
+    εs = fill(NaN, maxiter)
+    bds = fill(NaN, maxiter)
+    beliefs = [complex.([NaN,NaN]) for _ in 1:maxiter]
+    A = reshape([0.111609  0.111609;  0.388391  0.388391], 1,1,2,2)
+    A, iters = iterate_bp_vidal!(A, f, d; tol=1e-6, maxiter, errs, ovls, εs, bds, beliefs)
+    p1 = plot(εs, xlabel="iter", ylabel="convergence error", yscale=:log10, title="d=$d")
+    p2 = plot(errs, xlabel="iter", ylabel="truncation error on marginals", yscale=:log10)
+    p3 = plot(abs.(1 .- ovls), xlabel="iter", ylabel="|1-truncation overlap|", yscale=:log10)
+    p4 = plot(reduce.(-, beliefs) .|> real, ylabel="Re[single-var magnetiz]", ylims=(-2,2))
+    pl = plot(p1, p2, p3, p4, layout=(1,4), size=(900,250), margin=5Plots.mm, labelfontsize=9,
+        xlabel="iter", label="")
+end
+
+pl = plot(pls...; xlabel="iter", layout=(length(ds),1), size=(1000,1000))
