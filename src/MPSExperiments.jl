@@ -1,9 +1,7 @@
 module MPSExperiments
 
 using TensorTrains
-import TensorTrains: AbstractUniformTensorTrain, UniformTensorTrain, InfiniteUniformTensorTrain
-# using MatrixProductBP
-using ExportAll
+using TensorTrains.UniformTensorTrains
 using Tullio
 using TensorCast
 using Random
@@ -11,13 +9,15 @@ using LinearAlgebra
 using Lazy: @forward
 using ProgressMeter
 using KrylovKit
+using MPSKit
+using TensorKit
 
-import TensorTrains: _reshape1, _reshapeas
+using TensorTrains: _reshape1, _reshapeas
 
 include("uniform_tt.jl")
-
-@exportAll()
+include("vumps.jl")
 
 export tr
+export truncate_vumps, iterate_bp_vumps, belief, pair_belief
 
 end
