@@ -19,5 +19,6 @@ include("vumps.jl")
 
 export tr
 export truncate_vumps, iterate_bp_vumps, belief, pair_belief
+export transfer_operator, infinite_transfer_operator
 
 end

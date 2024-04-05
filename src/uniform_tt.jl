@@ -114,7 +114,7 @@ function leading_eig(G::AbstractTransferOperator)
     valsR, vecsR = eigsolve(B)
     valsL, vecsL = eigsolve(transpose(B))
     valsR[1] ≈ valsL[1] || @warn "Leading eigenvalue for A and Aᵀ not equal, got $(valsR[1]) and $(valsL[1])"
-    λ = valsL[1]
+    λ = complex(valsL[1])
     L = vecsL[1]
     R = vecsR[1]
     d = sizes(G)
@@ -169,6 +169,7 @@ end
 function infinite_transfer_operator(G::AbstractTransferOperator; lambda1::Bool=false)
     l, r, λ_ = leading_eig(G)
     λ = lambda1 ? one(λ_) : λ_
+    λ = convert(eltype(r), λ)
     InfiniteTransferOperator(l, r, λ)
 end
 

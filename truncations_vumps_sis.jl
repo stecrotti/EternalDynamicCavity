@@ -43,28 +43,37 @@ f = F(λ, ρ)
 
 # ds = [25, 30]
 # ds = [5, 10, 15, 20, 25]
-ds = [3, 4]
-# ds = 5:3:20
+# ds = [3, 4, 5, 6]
+ds = 5:5:10
+ds = [16]
+
+maxiter = 5
 
 A0 = reshape([0.210472  0.210472;  0.289528  0.289528], 1,1,2,2)
 
-ε, err, ovl, bel = map(eachindex(ds)) do a
+ε, err, ovl, bel, AA = map(eachindex(ds)) do a
     d = ds[a]
-    A, maxiter, εs, errs, ovls, beliefs = iterate_bp_vumps(f, d; A0, tol=1e-6, maxiter=60)
-    @telegram "vumps sis $a/$(length(ds)) finished"
-    εs, errs, ovls, beliefs
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0, tol=1e-12, maxiter)
+    # @telegram "vumps sis $a/$(length(ds)) finished"
+    εs, errs, ovls, beliefs, A
 end |> unzip
 
 using Plots
 
+myimag(x) = isnan(x) ? NaN : imag(x)
+
 pls = map(zip(ε, err, ovl, ds, bel)) do (εs, errs, ovls, d, beliefs)
-    replace!(ovls, 1.0 => NaN)
-    p1 = plot(εs, xlabel="iter", yaxis=:log10, ylabel="converg error", label="")
+    # replace!(εs, 0.0 => NaN)
+    # replace!(ovls, 1.0 => NaN)
+    p1 = plot(replace(εs, 0.0 => NaN), xlabel="iter", yaxis=:log10, ylabel="converg error", label="")
     p2 = plot(errs, xlabel="iter", yaxis=:log10, ylabel="trunc err on marginals", label="", title="d=$d")
-    p3 = plot(abs.(1 .- ovls), xlabel="iter", yaxis=:log10, ylabel="|1-trunc ovl|", label="")
-    p4 = plot([real(b[2]) for b in beliefs], ylabel="Re[single-var prob(Infectious)]", ylims=(0,1), label="")
-    hline!(p4, [0.5798385304677115] , label="steady-state", ls=:dash)
-    plot(p1, p2, p3, p4, layout=(1,4), size=(1000,250), margin=5Plots.mm, labelfontsize=9)
+    p3 = plot(abs.(1 .- replace(ovls, 1.0 => NaN)), xlabel="iter", yaxis=:log10, ylabel="|1-trunc ovl|", label="")
+    p4 = plot([b[2] for b in beliefs], ylabel="p(xᵢ=INFECT)", ylims=(-1,2), label="")
+    hline!(p4, [0.5798385304677115] , label="", ls=:dash)
+    p5 = plot([minimum(b) for b in beliefs], ylabel="min marginal", label="")
+    plot(p1, p2, p3, p4, p5, layout=(1,5), size=(1200,250), margin=5Plots.mm, labelfontsize=9)
 end
-pl = plot(pls..., layout=(length(ds),1), size=(1000, 250*length(ds)), margin=15Plots.mm)
-savefig(pl, (@__DIR__)*"/truncations_vumps_sis3.pdf")
+pl = plot(pls..., layout=(length(ds),1), size=(1000, 250*length(ds)), margin=5Plots.mm,
+    xticks = 0:(maxiter÷2):maxiter)
+savefig(pl, (@__DIR__)*"/truncations_vumps_sis.pdf")
+@telegram "vumps sis finished"
