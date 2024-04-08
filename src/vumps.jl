@@ -1,4 +1,4 @@
-function truncate_vumps(A::Array, d; ψ = InfiniteMPS(ℝ^size(A, 2), ℝ^d))
+function truncate_vumps(A::Array, d; ψ = InfiniteMPS([TensorMap(rand(d, size(A,2), d), (ℝ^d ⊗ ℝ^size(A,2)), ℝ^d)]))
     Q = size(A, 2)
     m = size(A, 1)
     @assert size(A, 3) == m
@@ -7,7 +7,7 @@ function truncate_vumps(A::Array, d; ψ = InfiniteMPS(ℝ^size(A, 2), ℝ^d))
     II = DenseMPO([MPSKit.add_util_leg(id(storagetype(MPSKit.site_type(ψ₀)), physicalspace(ψ₀, i)))
         for i in 1:length(ψ₀)])
     alg = VUMPS(; maxiter=100) # variational approximation algorithm
-    # alg = IDMRG1(; tol_galerkin=1e-12, maxiter=100)
+    # alg = IDMRG1(; maxiter=100)
     @assert typeof(ψ) == typeof(ψ₀)
     ψ_, = approximate(ψ, (II, ψ₀), alg)   # do the truncation
     @assert typeof(ψ) == typeof(ψ_)
