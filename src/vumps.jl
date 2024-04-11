@@ -27,7 +27,7 @@ function iterate_bp_vumps(f::Function, sz::Integer;
     beliefs = [[NaN,NaN] for _ in 1:maxiter]
     A = copy(A0)
     marg = fill(1/4, 4)
-    A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:1,1:1,:,:] .= A0
+    A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
     A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
     t = permutedims(A0_expanded_reshaped, (1,3,2))
     ψold = InfiniteMPS([TensorMap(t, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
@@ -70,4 +70,10 @@ end
 function pair_belief(A)
     @cast _[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * A[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
 end
-belief(A) = sum(pair_belief(A), dims=(1,2,3)) |> vec
+# belief(A) = sum(pair_belief(A), dims=(1,2,3)) |> vec
+function belief(A)
+    B = pair_belief(A)
+    q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(B)
+    bij = marginals(q) |> only |> real
+    sum(bij, dims=2) |> vec
+end
