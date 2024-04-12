@@ -44,7 +44,7 @@ function iterate_bp_vumps(f::Function, sz::Integer;
         Mresh = reshape(M, size(M,1), size(M,2), :)
         p = InfiniteUniformTensorTrain(Mresh)
         λ, = TensorTrains.UniformTensorTrains._eigen(p)
-        Mresh ./= exp(im*angle(λ))
+        # Mresh ./= exp(im*angle(λ))
     
         B = permutedims(Mresh, (1,3,2))
         Mtrunc, ovls[it], ψold = truncate_vumps(B, sz; ψ=ψold)
