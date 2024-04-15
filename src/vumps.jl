@@ -43,7 +43,7 @@ function iterate_bp_vumps(f::Function, sz::Integer;
         
         Mresh = reshape(M, size(M,1), size(M,2), :)
         p = InfiniteUniformTensorTrain(Mresh)
-        λ, = TensorTrains.UniformTensorTrains._eigen(p)
+        # λ, = TensorTrains.UniformTensorTrains._eigen(p)
         # Mresh ./= exp(im*angle(λ))
     
         B = permutedims(Mresh, (1,3,2))
@@ -68,12 +68,11 @@ end
 
 
 function pair_belief(A)
-    @cast _[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * A[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
-end
-# belief(A) = sum(pair_belief(A), dims=(1,2,3)) |> vec
-function belief(A)
-    B = pair_belief(A)
+    @cast B[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * A[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
     q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(B)
     bij = marginals(q) |> only |> real
+end
+# belief(A) = sum(pair_belief(A), dims=(1,2,3)) |> vec
+function belief(A; bij = pair_belief(A))
     sum(bij, dims=2) |> vec
 end
