@@ -7,7 +7,7 @@ using LinearAlgebra
 using ProgressMeter
 using MatrixProductBP, MatrixProductBP.Models
 
-include((@__DIR__)*"/../telegram/notifications.jl")
+include((@__DIR__)*"/../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
@@ -30,16 +30,11 @@ f = F(J, β, h)
 
 (m_ss,) = equilibrium_observables(RandomRegular(3), J; β, h)
 
-# ds = [25, 30]
-# ds = [5, 10, 15, 20, 25]
-# ds = [3, 4, 5, 6]
-ds = 2:2:10
-# ds = [3, 5]
+ds = 2:2:6
 
 maxiter = 30
 tol = 1e-15
 
-# A0 = reshape([0.31033984998979236 0.31033984998979214; 0.18966015001020783 0.1896601500102077], 1,1,2,2)
 # Random.seed!(3)
 A0 = rand(1,1,2,2)
 A0 = reshape([0.4 0.4; 0.2 0.2], 1, 1, 2, 2)
@@ -47,7 +42,6 @@ A0 = reshape([0.4 0.4; 0.2 0.2], 1, 1, 2, 2)
 ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
     d = ds[a]
     A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0, tol, maxiter)
-    # @telegram "vumps sis $a/$(length(ds)) finished"
     εs, errs, ovls, beliefs, A, As
 end |> unzip
 
@@ -59,7 +53,6 @@ pls = map(zip(ε, err, ovl, ds, bel)) do (εs, errs, ovls, d, beliefs)
     p3 = plot(abs.(1 .- replace(ovls, 1.0 => NaN)), xlabel="iter", yaxis=:log10, ylabel="|1-trunc ovl|", label="")
     p4 = plot([reduce(-, b) for b in beliefs], ylabel="single-var magnetiz", ylims=(-2,2), label="")
     hline!(p4, [m_ss] , label="", ls=:dash)
-    # p5 = plot([minimum(b) for b in beliefs], ylabel="min marginal", label="")
     plot(p1, p2, p3, p4, layout=(1,4), size=(1200,250), margin=5Plots.mm, labelfontsize=9)
 end
 pl = plot(pls..., layout=(length(ds),1), size=(1000, 250*length(ds)), margin=5Plots.mm,
@@ -67,9 +60,12 @@ pl = plot(pls..., layout=(length(ds),1), size=(1000, 250*length(ds)), margin=5Pl
 savefig(pl, (@__DIR__)*"/vumps_glauber.pdf")
 
 ps = [reduce(-,b[findlast(x->!all(isnan, x), b)]) for b in bel]
-pl_ps = scatter(ds, ps, xlabel="bond dim", ylabel="magnetiz", label="")
+pl_ps = scatter(ds, ps, xlabel="bond dim", ylabel="magnetiz", label="",
+    ms=2, c=:black)
 hline!(pl_ps, [m_ss], ylims=(0.9,1.), label="true steady-state")
 plot!(pl_ps, title="Glauber J=$J, h=$h, β=$β")
 savefig(pl_ps, "vumps_glauber_bonddims.pdf")
+
+jldsave((@__DIR__)*"/../data/vumps_glauber.jld2"; J, h, β, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, m_ss)
 
 @telegram "vumps glauber finished"

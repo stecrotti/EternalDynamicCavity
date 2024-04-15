@@ -7,7 +7,7 @@ using LinearAlgebra
 using ProgressMeter
 using JLD2
 
-include((@__DIR__)*"/../telegram/notifications.jl")
+include((@__DIR__)*"/../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
@@ -44,7 +44,7 @@ f = F(λ, ρ; γ=0)
 # ds = [25, 30]
 # ds = [5, 10, 15, 20, 25]
 # ds = [3, 4, 5, 6]
-ds = 2:2:6
+ds = 2:2:8
 # ds = [3, 5]
 
 maxiter = 40
@@ -96,10 +96,9 @@ pl_ps = scatter(ds, ps, xlabel="bond dim", ylabel="p(xᵢ=INFECT)", label="",
     ms=2, c=:black)
 hline!(pl_ps, [p_ss_montecarlo], label="montecarlo", ylims=(0,1))
 hline!(pl_ps, [p_ss_mpbp] , label="MPBP")
-# hline!(pl_ps, [p_ss_cme], label="cavity master eq")
 plot!(pl_ps, title="λ=$λ, ρ=$ρ")
 # savefig(pl_ps, "vumps_sis_bonddims.pdf")
 
-# jldsave("data/vumps_sis.jld2"; λ, ρ, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, p_ss_montecarlo, p_ss_mpbp)
+jldsave((@__DIR__)*"/../data/vumps_sis.jld2"; λ, ρ, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, p_ss_montecarlo, p_ss_mpbp)
 
 @telegram "vumps sis finished"
