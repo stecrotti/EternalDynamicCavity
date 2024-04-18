@@ -14,11 +14,22 @@ using TensorKit
 
 using TensorTrains: _reshape1, _reshapeas
 
-# include("uniform_tt.jl")
+function pair_belief(A)
+    @cast B[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * A[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
+    q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(B)
+    bij = marginals(q) |> only |> real
+end
+function belief(A; bij = pair_belief(A))
+    sum(bij, dims=2) |> vec
+end
+
 include("vumps.jl")
+include("vidal.jl")
+# include("VUMPS.jl")
 
 export tr
 export truncate_vumps, iterate_bp_vumps, belief, pair_belief
+export iMPS, canonicalize, bond_dims, overlap
 # export transfer_operator, infinite_transfer_operator
 
 end

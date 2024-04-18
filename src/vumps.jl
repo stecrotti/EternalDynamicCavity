@@ -1,4 +1,6 @@
-function truncate_vumps(A::Array, d; ψ = InfiniteMPS([TensorMap(rand(d, size(A,2), d), (ℝ^d ⊗ ℝ^size(A,2)), ℝ^d)]))
+function truncate_vumps(A::Array, d; 
+        ψ = InfiniteMPS([TensorMap(rand(d, size(A,2), d), (ℝ^d ⊗ ℝ^size(A,2)), ℝ^d)]),
+        maxiter = 100, kw_vumps...)
     Q = size(A, 2)
     m = size(A, 1)
     @assert size(A, 3) == m
@@ -6,8 +8,8 @@ function truncate_vumps(A::Array, d; ψ = InfiniteMPS([TensorMap(rand(d, size(A,
     ψ₀ = InfiniteMPS([t])
     II = DenseMPO([MPSKit.add_util_leg(id(storagetype(MPSKit.site_type(ψ₀)), physicalspace(ψ₀, i)))
         for i in 1:length(ψ₀)])
-    alg = VUMPS(; maxiter=100) # variational approximation algorithm
-    # alg = IDMRG1(; maxiter=100)
+    alg = VUMPS(; maxiter, kw_vumps...) # variational approximation algorithm
+    # alg = IDMRG1(; maxiter)
     @assert typeof(ψ) == typeof(ψ₀)
     ψ_, = approximate(ψ, (II, ψ₀), alg)   # do the truncation
     @assert typeof(ψ) == typeof(ψ_)
@@ -20,7 +22,8 @@ end
 
 function iterate_bp_vumps(f::Function, sz::Integer;
         maxiter=50, tol=1e-3,
-        A0 = reshape(rand(2,2), 1,1,2,2))
+        A0 = reshape(rand(2,2), 1,1,2,2),
+        maxiter_vumps = 100, kw_vumps...)
     errs = fill(NaN, maxiter)
     ovls = fill(NaN, maxiter)
     εs = fill(NaN, maxiter)
@@ -32,7 +35,8 @@ function iterate_bp_vumps(f::Function, sz::Integer;
     t = permutedims(A0_expanded_reshaped, (1,3,2))
     ψold = InfiniteMPS([TensorMap(t, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
     As = [copy(A0)]
-    @showprogress for it in 1:maxiter
+    prog = Progress(maxiter, desc="Running BP + VUMPS")
+    for it in 1:maxiter
         @tullio BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹] := 
             f(xᵢᵗ⁺¹,[xⱼᵗ,xₖᵗ,xₗᵗ],xᵢᵗ)*A[m1,n1,xₖᵗ,xᵢᵗ]*A[m2,n2,xₗᵗ,xᵢᵗ] (xⱼᵗ in 1:2, xᵢᵗ⁺¹ in 1:2)
         @cast Q[(xᵢᵗ, xⱼᵗ, m1, m2), (n1, n2, xᵢᵗ⁺¹)] := BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹]
@@ -47,7 +51,7 @@ function iterate_bp_vumps(f::Function, sz::Integer;
         # Mresh ./= exp(im*angle(λ))
     
         B = permutedims(Mresh, (1,3,2))
-        Mtrunc, ovls[it], ψold = truncate_vumps(B, sz; ψ=ψold)
+        Mtrunc, ovls[it], ψold = truncate_vumps(B, sz; ψ=ψold, maxiter=maxiter_vumps, kw_vumps...)
         Mtrunc ./= Mtrunc[1]
         Mtrunc_resh = permutedims(Mtrunc, (1,3,2))
         q = InfiniteUniformTensorTrain(Mtrunc_resh)
@@ -62,17 +66,7 @@ function iterate_bp_vumps(f::Function, sz::Integer;
         b = belief(A)
         beliefs[it] .= b ./ sum(b)
         εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
+        next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
     end
     return A, maxiter, εs, errs, ovls, beliefs, As
-end
-
-
-function pair_belief(A)
-    @cast B[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * A[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
-    q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(B)
-    bij = marginals(q) |> only |> real
-end
-# belief(A) = sum(pair_belief(A), dims=(1,2,3)) |> vec
-function belief(A; bij = pair_belief(A))
-    sum(bij, dims=2) |> vec
 end

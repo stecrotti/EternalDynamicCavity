@@ -30,10 +30,11 @@ f = F(J, β, h)
 
 (m_ss,) = equilibrium_observables(RandomRegular(3), J; β, h)
 
-ds = 2:2:6
+ds = 2:2:4
 
 maxiter = 30
 tol = 1e-15
+maxiter_vumps = 10
 
 # Random.seed!(3)
 A0 = rand(1,1,2,2)
@@ -41,7 +42,7 @@ A0 = reshape([0.4 0.4; 0.2 0.2], 1, 1, 2, 2)
 
 ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
     d = ds[a]
-    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0, tol, maxiter)
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0, tol, maxiter, maxiter_vumps)
     εs, errs, ovls, beliefs, A, As
 end |> unzip
 
@@ -57,15 +58,15 @@ pls = map(zip(ε, err, ovl, ds, bel)) do (εs, errs, ovls, d, beliefs)
 end
 pl = plot(pls..., layout=(length(ds),1), size=(1000, 250*length(ds)), margin=5Plots.mm,
     xticks = 0:(maxiter÷2):maxiter, xlabel="iter")
-savefig(pl, (@__DIR__)*"/vumps_glauber.pdf")
+# savefig(pl, (@__DIR__)*"/vumps_glauber.pdf")
 
 ps = [reduce(-,b[findlast(x->!all(isnan, x), b)]) for b in bel]
 pl_ps = scatter(ds, ps, xlabel="bond dim", ylabel="magnetiz", label="",
     ms=2, c=:black)
 hline!(pl_ps, [m_ss], ylims=(0.9,1.), label="true steady-state")
 plot!(pl_ps, title="Glauber J=$J, h=$h, β=$β")
-savefig(pl_ps, "vumps_glauber_bonddims.pdf")
+# savefig(pl_ps, "vumps_glauber_bonddims.pdf")
 
-jldsave((@__DIR__)*"/../data/vumps_glauber.jld2"; J, h, β, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, m_ss)
+# jldsave((@__DIR__)*"/../data/vumps_glauber.jld2"; J, h, β, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, m_ss)
 
 @telegram "vumps glauber finished"
