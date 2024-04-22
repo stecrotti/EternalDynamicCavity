@@ -36,13 +36,12 @@ function one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
     Mtrunc ./= Mtrunc[1]
     Mtrunc_resh = permutedims(Mtrunc, (1,3,2))
     q = InfiniteUniformTensorTrain(Mtrunc_resh)
-    marg_new = marginals(q) |> only
 
     err = maximum(abs, only(marginals(p)) - only(marginals(q)))
     A = reshape(Mtrunc_resh, size(Mtrunc_resh, 1), size(Mtrunc_resh, 2), 2, 2)
     ε = abs( 1 - dot(q, InfiniteUniformTensorTrain(Aold)))
     b = belief(A); b ./= sum(b)
-    return A, ε, err, ovl, marg_new, b
+    return A, ε, err, ovl, b
 end
 
 
@@ -55,7 +54,6 @@ function iterate_bp_vumps(f::Function, sz::Integer;
     εs = fill(NaN, maxiter)
     beliefs = [[NaN,NaN] for _ in 1:maxiter]
     A = copy(A0)
-    marg = fill(1/4, 4)
     A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
     A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
     t = permutedims(A0_expanded_reshaped, (1,3,2))
@@ -64,15 +62,63 @@ function iterate_bp_vumps(f::Function, sz::Integer;
     prog = Progress(maxiter, desc="Running BP + VUMPS")
     for it in 1:maxiter
         Aold = As[end]
-        A, ε, err, ovl, marg_new, b = one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
+        A, ε, err, ovl, b = one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
         push!(As, A)
         errs[it] = err
         beliefs[it] .= b
         ovls[it] = ovl
         εs[it] = ε
         εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
-        marg = marg_new
         next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
     end
     return A, maxiter, εs, errs, ovls, beliefs, As
+end
+
+#### BIPARTITE GRAPH
+function belief_bipartite(A, B, kA, kB)
+    bijA = pair_belief(A)
+    bijB = pair_belief(B)
+    bA = sum(bijA, dims=2) |> vec
+    bA ./= sum(bA)
+    bB = sum(bijB, dims=2) |> vec
+    bB ./= sum(bB)
+    b = 1/kA * bA + 1/kB * bB
+    b ./= sum(b)
+    return b
+end
+
+function iterate_bp_vumps_bipartite(fA, fB, sz::Integer, kA, kB;
+        maxiter=50, tol=1e-10,
+        A0 = reshape(rand(2,2), 1,1,2,2),
+        B0 = copy(A0),
+        maxiter_vumps = 100, kw_vumps...)
+    errs = fill(NaN, maxiter)
+    ovls = fill(NaN, maxiter)
+    εs = fill(NaN, maxiter)
+    beliefs = [[NaN,NaN] for _ in 1:maxiter]
+    A = copy(A0); B = copy(B0)
+    A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
+    A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
+    tA = permutedims(A0_expanded_reshaped, (1,3,2))
+    ψAold = InfiniteMPS([TensorMap(tA, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
+    B0_expanded = zeros(sz,sz,2,2); B0_expanded[1:size(B0,1),1:size(B0,2),:,:] .= A0
+    B0_expanded_reshaped = reshape(B0_expanded, size(B0_expanded,1), size(B0_expanded,2), :)
+    tB = permutedims(B0_expanded_reshaped, (1,3,2))
+    ψBold = InfiniteMPS([TensorMap(tB, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
+    As = [copy(A0)]; Bs = [copy(B0)]
+    prog = Progress(maxiter, desc="Running BP + VUMPS")
+    for it in 1:maxiter
+        Aold = As[end]; Bold = Bs[end]
+        B, εB, errB, ovlB = one_bpvumps_iter(fB, A, sz, ψBold, Bold, maxiter_vumps; kw_vumps...)
+        push!(Bs, B)
+        A, εA, errA, ovlA = one_bpvumps_iter(fA, B, sz, ψAold, Aold, maxiter_vumps; kw_vumps...)
+        push!(As, A)
+        errs[it] = max(errA, errB)
+        beliefs[it] = belief_bipartite(A, B, kA, kB)
+        ovls[it] = max(ovlA, ovlB)
+        εs[it] = max(εA, εB)
+        εs[it] < tol && return A, B, maxiter, εs, errs, ovls, beliefs, As, Bs
+        next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
+    end
+    return A, B, maxiter, εs, errs, ovls, beliefs, As, Bs
 end
