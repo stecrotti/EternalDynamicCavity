@@ -19,6 +19,32 @@ function truncate_vumps(A::Array, d;
     return B, ovl, ψ_
 end
 
+function one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
+    @tullio BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹] := 
+        f(xᵢᵗ⁺¹,[xⱼᵗ,xₖᵗ,xₗᵗ],xᵢᵗ)*A[m1,n1,xₖᵗ,xᵢᵗ]*A[m2,n2,xₗᵗ,xᵢᵗ] (xⱼᵗ in 1:2, xᵢᵗ⁺¹ in 1:2)
+    @cast Q[(xᵢᵗ, xⱼᵗ, m1, m2), (n1, n2, xᵢᵗ⁺¹)] := BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹]
+    U, λ, V = svd(Matrix(Q))
+    @cast C[m,k,xᵢᵗ,xⱼᵗ] := U[(xᵢᵗ, xⱼᵗ, m), k] (k in 1:length(λ), xᵢᵗ in 1:2, xⱼᵗ in 1:2)
+    @cast Vt[m,n,xᵢᵗ⁺¹] := V'[m, (n, xᵢᵗ⁺¹)]  xᵢᵗ⁺¹ in 1:2
+    @tullio M[m,n,xᵢᵗ,xⱼᵗ] := λ[m] * Vt[m,l,xᵢᵗ] * C[l,n,xᵢᵗ,xⱼᵗ]
+
+    Mresh = reshape(M, size(M,1), size(M,2), :)
+    p = InfiniteUniformTensorTrain(Mresh)
+
+    B = permutedims(Mresh, (1,3,2))
+    Mtrunc, ovl, ψold = truncate_vumps(B, sz; ψ=ψold, maxiter=maxiter_vumps, kw_vumps...)
+    Mtrunc ./= Mtrunc[1]
+    Mtrunc_resh = permutedims(Mtrunc, (1,3,2))
+    q = InfiniteUniformTensorTrain(Mtrunc_resh)
+    marg_new = marginals(q) |> only
+
+    err = maximum(abs, only(marginals(p)) - only(marginals(q)))
+    A = reshape(Mtrunc_resh, size(Mtrunc_resh, 1), size(Mtrunc_resh, 2), 2, 2)
+    ε = abs( 1 - dot(q, InfiniteUniformTensorTrain(Aold)))
+    b = belief(A); b ./= sum(b)
+    return A, ε, err, ovl, marg_new, b
+end
+
 
 function iterate_bp_vumps(f::Function, sz::Integer;
         maxiter=50, tol=1e-3,
@@ -37,35 +63,15 @@ function iterate_bp_vumps(f::Function, sz::Integer;
     As = [copy(A0)]
     prog = Progress(maxiter, desc="Running BP + VUMPS")
     for it in 1:maxiter
-        @tullio BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹] := 
-            f(xᵢᵗ⁺¹,[xⱼᵗ,xₖᵗ,xₗᵗ],xᵢᵗ)*A[m1,n1,xₖᵗ,xᵢᵗ]*A[m2,n2,xₗᵗ,xᵢᵗ] (xⱼᵗ in 1:2, xᵢᵗ⁺¹ in 1:2)
-        @cast Q[(xᵢᵗ, xⱼᵗ, m1, m2), (n1, n2, xᵢᵗ⁺¹)] := BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹]
-        U, λ, V = svd(Matrix(Q))
-        @cast C[m,k,xᵢᵗ,xⱼᵗ] := U[(xᵢᵗ, xⱼᵗ, m), k] (k in 1:length(λ), xᵢᵗ in 1:2, xⱼᵗ in 1:2)
-        @cast Vt[m,n,xᵢᵗ⁺¹] := V'[m, (n, xᵢᵗ⁺¹)]  xᵢᵗ⁺¹ in 1:2
-        @tullio M[m,n,xᵢᵗ,xⱼᵗ] := λ[m] * Vt[m,l,xᵢᵗ] * C[l,n,xᵢᵗ,xⱼᵗ]
-        
-        Mresh = reshape(M, size(M,1), size(M,2), :)
-        p = InfiniteUniformTensorTrain(Mresh)
-        # λ, = TensorTrains.UniformTensorTrains._eigen(p)
-        # Mresh ./= exp(im*angle(λ))
-    
-        B = permutedims(Mresh, (1,3,2))
-        Mtrunc, ovls[it], ψold = truncate_vumps(B, sz; ψ=ψold, maxiter=maxiter_vumps, kw_vumps...)
-        Mtrunc ./= Mtrunc[1]
-        Mtrunc_resh = permutedims(Mtrunc, (1,3,2))
-        q = InfiniteUniformTensorTrain(Mtrunc_resh)
-        marg_new = marginals(q) |> only
-
-        # εs[it] = maximum(abs, marg - only(marginals(p)))
-        errs[it] = maximum(abs, only(marginals(p)) - only(marginals(q)))
-        marg = marg_new
-        A = reshape(Mtrunc_resh, size(Mtrunc_resh, 1), size(Mtrunc_resh, 2), 2, 2)
+        Aold = As[end]
+        A, ε, err, ovl, marg_new, b = one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
         push!(As, A)
-        εs[it] = abs( 1 - dot(q, InfiniteUniformTensorTrain(As[end-1])))
-        b = belief(A)
-        beliefs[it] .= b ./ sum(b)
+        errs[it] = err
+        beliefs[it] .= b
+        ovls[it] = ovl
+        εs[it] = ε
         εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
+        marg = marg_new
         next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
     end
     return A, maxiter, εs, errs, ovls, beliefs, As
