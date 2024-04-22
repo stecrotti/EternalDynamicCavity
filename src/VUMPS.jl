@@ -24,6 +24,9 @@ end
 d = 5
 q = 2
 A = rand(5, 5, q)
+using JLD2
+A = load("tmp.jld2")["A"]
+q = size(A, 3)
 
 # function vumps_loop(A)
 # l = Matrix(1.0I, size(A,1), size(A,2))
@@ -118,11 +121,12 @@ function inner_loop(l, L1, r, R1, AL, AR)
     @show norm(AL - ALnew)
     @show norm(AR - ARnew)
     @show real(marginals(InfiniteUniformTensorTrain(ALnew))[1])
+    @show real(marginals(InfiniteUniformTensorTrain(ARnew))[1])
 
     lnew, L1new, rnew, R1new, ALnew, ARnew
 end
 
-maxiter = 100
+maxiter = 300
 
 for it in 1:maxiter
     global l, L1, r, R1, AL, AR = inner_loop(l, L1, r, R1, AL, AR)

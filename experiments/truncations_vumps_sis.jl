@@ -44,7 +44,7 @@ end
 f = F(λ, ρ; γ=0)
 
 ds = 2:2:8
-ds = [8]
+ds = [6]
 
 maxiter = 40
 tol = 1e-15
@@ -61,7 +61,7 @@ stats = @timed begin
     global ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
         d = ds[a]
         A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=1e-2), d; A0, tol, 
-            maxiter, maxiter_vumps, alg_gauge, alg_eigsolve, alg_environments)
+            maxiter, maxiter_vumps#=, alg_gauge, alg_eigsolve, alg_environments=#)
         Base.GC.gc()
         # A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0=A, tol, maxiter,
         #     maxiter_vumps, alg_gauge, alg_eigsolve, alg_environments)
