@@ -30,6 +30,7 @@ include("vidal.jl")
 export tr
 export truncate_vumps, iterate_bp_vumps, belief, pair_belief
 export iMPS, canonicalize, bond_dims, overlap
+export iterate_bp_vumps_bipartite
 # export transfer_operator, infinite_transfer_operator
 
 end
