@@ -75,19 +75,22 @@ function iterate_bp_vumps(f::Function, sz::Integer;
 end
 
 #### BIPARTITE GRAPH
-function belief_bipartite(A, B, kA, kB)
+
+# return the average belief and the two block beliefs
+function belief_bipartite(A, B)
     bijA = pair_belief(A)
     bijB = pair_belief(B)
     bA = sum(bijA, dims=2) |> vec
     bA ./= sum(bA)
     bB = sum(bijB, dims=2) |> vec
     bB ./= sum(bB)
-    b = 1/kA * bA + 1/kB * bB
+    b = bA + bB
     b ./= sum(b)
-    return b
+    return b, bA, bB
 end
 
-function iterate_bp_vumps_bipartite(fA, fB, sz::Integer, kA, kB;
+# BP+VUMPS on bipartite graph with fixed degree k=3
+function iterate_bp_vumps_bipartite(fA, fB, sz::Integer;
         maxiter=50, tol=1e-10,
         A0 = reshape(rand(2,2), 1,1,2,2),
         B0 = copy(A0),
@@ -96,6 +99,7 @@ function iterate_bp_vumps_bipartite(fA, fB, sz::Integer, kA, kB;
     ovls = fill(NaN, maxiter)
     εs = fill(NaN, maxiter)
     beliefs = [[NaN,NaN] for _ in 1:maxiter]
+    beliefsA = [[NaN,NaN] for _ in 1:maxiter]; beliefsB = [[NaN,NaN] for _ in 1:maxiter]
     A = copy(A0); B = copy(B0)
     A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
     A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
@@ -114,11 +118,12 @@ function iterate_bp_vumps_bipartite(fA, fB, sz::Integer, kA, kB;
         A, εA, errA, ovlA = one_bpvumps_iter(fA, B, sz, ψAold, Aold, maxiter_vumps; kw_vumps...)
         push!(As, A)
         errs[it] = max(errA, errB)
-        beliefs[it] = belief_bipartite(A, B, kA, kB)
+        b, bA, bB = belief_bipartite(A, B)
+        beliefs[it] = b; beliefsA[it] = bA; beliefsB[it] = bB
         ovls[it] = max(ovlA, ovlB)
         εs[it] = max(εA, εB)
-        εs[it] < tol && return A, B, maxiter, εs, errs, ovls, beliefs, As, Bs
+        εs[it] < tol && return A, B, maxiter, εs, errs, ovls, beliefs, beliefsA, beliefsB, As, Bs
         next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
     end
-    return A, B, maxiter, εs, errs, ovls, beliefs, As, Bs
+    return A, B, maxiter, εs, errs, ovls, beliefs, beliefsA, beliefsB, As, Bs
 end
