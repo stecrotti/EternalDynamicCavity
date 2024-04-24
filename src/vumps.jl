@@ -78,11 +78,10 @@ end
 
 # return the average belief and the two block beliefs
 function belief_bipartite(A, B)
-    bijA = pair_belief(A)
-    bijB = pair_belief(B)
-    bA = sum(bijA, dims=2) |> vec
+    bij = pair_belief(A, B)
+    bA = sum(bij, dims=2) |> vec
     bA ./= sum(bA)
-    bB = sum(bijB, dims=2) |> vec
+    bB = sum(bij, dims=1) |> vec
     bB ./= sum(bB)
     b = bA + bB
     b ./= sum(b)
