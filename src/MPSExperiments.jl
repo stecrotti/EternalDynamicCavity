@@ -14,10 +14,10 @@ using TensorKit
 
 using TensorTrains: _reshape1, _reshapeas
 
-function pair_belief(A)
-    @cast B[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * A[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
-    q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(B)
-    bij = marginals(q) |> only |> real
+function pair_belief(A, B=A)
+    @cast C[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * B[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
+    q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(C)
+    return marginals(q) |> only |> real
 end
 function belief(A; bij = pair_belief(A))
     sum(bij, dims=2) |> vec
