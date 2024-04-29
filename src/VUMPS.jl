@@ -1,10 +1,13 @@
 using LinearAlgebra
 using TensorTrains, TensorTrains.UniformTensorTrains
+using MPSExperiments
 using MatrixFactorizations
 using TensorKit, MPSKit
 using Tullio
 using Random
 using ProgressMeter
+using Unzip
+using Statistics
 
 function mypolar(A)
     U, Σ, V = svd(A)
@@ -24,6 +27,19 @@ function polar_right(A; kw...)
     U'
 end
 
+function qrpos(A::AbstractMatrix)
+    Q_, R = qr(A)
+    Q = Matrix(Q_)
+    d = @view R[diagind(R)]
+    if all(>(0), d)
+        return Q, R
+    else
+        D = Diagonal(sign.(d))
+        Q = Q * D
+        R = D * R
+        return Q, R
+    end
+end
 
 function _initialize_posdef(A; rng=Random.default_rng())
     l = rand(rng, size(A,1), size(A,2))
@@ -33,7 +49,7 @@ function _initialize_posdef(A; rng=Random.default_rng())
 end
 
 function left_orthogonal(A; l = _initialize_posdef(A), 
-        maxiter=500, tol=1e-12)
+        maxiter=2*10^3, tol=1e-16)
     ε = λl = Inf
     for _ in 1:maxiter
         @views lnew = sum(A[:,:,x]' * l * A[:,:,x] for x in axes(A,3))
@@ -43,12 +59,12 @@ function left_orthogonal(A; l = _initialize_posdef(A),
         ε < tol && return lnew, λl
         l = lnew
     end
-    @warn "LeftOrthogonal not converged after $maxiter iterations. ε=$ε"
+    @info "LeftOrthogonal not converged after $maxiter iterations. ε=$ε"
     return l, λl
 end
 
 function right_orthogonal(A; r = _initialize_posdef(A), 
-        maxiter=500, tol=1e-12)
+        maxiter=2*10^3, tol=1e-16)
     ε = λr = Inf
     for _ in 1:maxiter
         @views rnew = sum(A[:,:,x] * r * A[:,:,x]' for x in axes(A,3))
@@ -58,7 +74,7 @@ function right_orthogonal(A; r = _initialize_posdef(A),
         ε < tol && return rnew, λr
         r = rnew
     end
-    @warn "RightOrthogonal not converged after $maxiter iterations. ε=$ε"
+    @info "RightOrthogonal not converged after $maxiter iterations. ε=$ε"
     return r, λr
 end
 
@@ -71,7 +87,7 @@ function is_rightorth(AR)
     y ≈ I
 end
 
-function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=500, tol=1e-12)
+function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=2*10^3, tol=1e-16)
     ε = λL1 = Inf
     for _ in 1:maxiter
         @views L1new = sum(AL[:,:,x]' * L1 * ALtilde[:,:,x] for x in axes(ALtilde,3))
@@ -81,10 +97,10 @@ function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=500
         ε < tol && return L1new, λL1
         L1 = L1new
     end
-    @warn "left_fixedpoint not converged after $maxiter iterations. ε=$ε"
+    @info "left_fixedpoint not converged after $maxiter iterations. ε=$ε"
     return L1, λL1
 end
-function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=500, tol=1e-12)
+function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=2*10^3, tol=1e-16)
     ε = λR1 = Inf
     for _ in 1:maxiter
         @views R1new = sum(ARtilde[:,:,x] * R1 * AR[:,:,x]' for x in axes(ARtilde,3))
@@ -94,24 +110,9 @@ function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=50
         ε < tol && return R1new, λR1
         R1 = R1new
     end
-    @warn "right_fixedpoint not converged after $maxiter iterations. ε=$ε"
+    @info "right_fixedpoint not converged after $maxiter iterations. ε=$ε"
     return R1, λR1
 end
-
-
-A = rand(5, 5, 4)
-using JLD2
-A = load("tmp.jld2")["A"]
-q = size(A, 3)
-d = size(A, 1)
-ψ = InfiniteMPS([TensorMap(A, (ℝ^d ⊗ ℝ^q), ℝ^d)])
-
-l = _initialize_posdef(A)
-r = _initialize_posdef(A)
-L1 = rand(d, size(A,2))
-R1 = rand(size(A,1), d)
-AL = rand(d, d, q)
-AR = rand(d, d, q)
 
 function mixed_canonical(A;
         l = _initialize_posdef(A), r = _initialize_posdef(A))
@@ -136,6 +137,10 @@ function mixed_canonical(A;
     @debug begin    # at convergence
         @assert is_leftorth(AL2)
         @assert is_rightorth(AR2)
+        qL = InfiniteUniformTensorTrain(AL2)
+        qR = InfiniteUniformTensorTrain(AR2)
+        q = InfiniteUniformTensorTrain(A)
+        @assert marginals(qL) ≈ marginals(qR) ≈ marginals(q)
     end
 
     # compute C, AC
@@ -170,18 +175,20 @@ function mixed_canonical(A;
 end
 
 
-function vumps_original(A; 
-        l=_initialize_posdef(A),
-        r=_initialize_posdef(A), 
+function vumps_original(A, d; 
+        l = _initialize_posdef(A),
+        r = _initialize_posdef(A), 
         L1 = rand(d, size(A,2)),
         R1 = rand(size(A,1), d),
         AL = rand(d, d, q),
         AR = rand(d, d, q),
-        maxiter=100, tol=1e-14, verbose=true)
+        maxiter=100, tol=1e-14, verbose=true,
+        δs = fill(NaN, maxiter+1))
     
     ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical(A; l, r)
 
     δ = 1.0
+    δs[1] = δ
     ALnew = similar(AL); ARnew = similar(AR)
 
     for it in 1:maxiter
@@ -197,23 +204,46 @@ function vumps_original(A;
         # compute C
         C = L1new * Ctilde * R1new
 
-        # min AC, C
-        alg = :halley
-        Uleft_C = polar_left(C; alg)
-        @assert Uleft_C'Uleft_C ≈ I
-        Uright_C = polar_right(C; alg)
-        @assert Uright_C * Uright_C' ≈ I
+        # # min AC, C
+        # alg = :svd
+        # Uleft_C = polar_left(C; alg)
+        # @assert Uleft_C'Uleft_C ≈ I "C=$C"
+        # Uright_C = polar_right(C; alg)
+        # @assert Uright_C * Uright_C' ≈ I "C=$C"
 
+        # for x in axes(A, 3)
+        #     Uleft_AC = polar_left(AC[:,:,x]; alg)
+        #     @assert Uleft_AC'Uleft_AC ≈ I
+        #     Uright_AC = polar_right(AC[:,:,x]; alg)
+        #     @assert Uright_AC * Uright_AC' ≈ I
+        #     ALnew[:,:,x] .= Uleft_AC * Uleft_C'
+        #     ARnew[:,:,x] .= Uright_C' * Uright_AC
+        # end
+        # λAL = norm(ALnew); ALnew ./= sqrt(λAL)
+        # λAR = norm(ARnew); ARnew ./= sqrt(λAR)
+
+        # Cinv = pinv(C)
         for x in axes(A, 3)
-            Uleft_AC = polar_left(AC[:,:,x]; alg)
-            # @assert Uleft_AC'Uleft_AC ≈ I
-            Uright_AC = polar_right(AC[:,:,x]; alg)
-            # @assert Uright_AC * Uright_AC' ≈ I
-            ALnew[:,:,x] .= Uleft_AC * Uleft_C'
-            ARnew[:,:,x] .= Uright_C' * Uright_AC
+            # ALnew[:,:,x] .= AC[:,:,x] * Cinv
+            ALnew[:,:,x] .= AC[:,:,x] / C
+            ARnew[:,:,x] .= C \ AC[:,:,x]
         end
-        λAL = norm(ALnew); ALnew ./= sqrt(λAL)
-        λAR = norm(ARnew); ARnew ./= sqrt(λAR)
+
+        # Uleft_C = qrpos(C)[1]
+        # @assert Uleft_C'Uleft_C ≈ I "C=$C"
+        # Uright_C = qrpos(C)[1]
+        # @assert Uright_C * Uright_C' ≈ I "C=$C"
+
+        # for x in axes(A, 3)
+        #     Uleft_AC = qrpos(AC[:,:,x])[1]
+        #     @assert Uleft_AC'Uleft_AC ≈ I
+        #     Uright_AC = qrpos(AC[:,:,x])[1]
+        #     @assert Uright_AC * Uright_AC' ≈ I
+        #     ALnew[:,:,x] .= Uleft_AC * Uleft_C'
+        #     ARnew[:,:,x] .= Uright_C' * Uright_AC
+        # end
+        # λAL = norm(ALnew); ALnew ./= sqrt(λAL)
+        # λAR = norm(ARnew); ARnew ./= sqrt(λAR)
 
         @debug begin
             is_leftorth(ALnew)
@@ -224,19 +254,71 @@ function vumps_original(A;
         for x in axes(A, 3)
             ALC[:,:,x] = ALnew[:,:,x] * C
         end
-        δ = norm(ALC - AC/λL1)
+        δ = norm(ALC - AC)
+        δs[it] = δ
         δ < tol && return ALnew, ARnew
         verbose && println("iter $it. δ=$δ")
+
+        λAL = norm(ALnew); ALnew ./= sqrt(λAL)
+        λAR = norm(ARnew); ARnew ./= sqrt(λAR)
+        L1 = L1new; R1 = R1new; AL = ALnew; AR = ARnew
     end
     @warn "vumps_original not converged after $maxiter iterations. δ=$δ"
     return ALnew, ARnew
 end
 
-maxiter = 1
-AL, AR = vumps_original(A)
-qq = InfiniteUniformTensorTrain(A)
-p = InfiniteUniformTensorTrain(AL)
-real(marginals(qq)), real(marginals(p))
+
+
+A = rand(20, 20, 4)
+using JLD2
+A = load("tmp.jld2")["A"]
+q = size(A, 3)
+m = size(A, 1)
+ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
+p = InfiniteUniformTensorTrain(A)
+
+maxiter = 100
+d = 7
+δs = fill(NaN, maxiter+1)
+AL, AR = vumps_original(A, d; maxiter, δs)
+pL = InfiniteUniformTensorTrain(AL)
+ovlL = abs(1 - dot(p, pL))
+pR = InfiniteUniformTensorTrain(AR)
+ovlR = abs(1 - dot(p, pR))
+err_marg = max(
+    maximum(abs, real(marginals(pL))[1] - real(marginals(p))[1]),
+    maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
+)
+@show ovlL, ovlR
+B = truncate_vumps(permutedims(A, (1,3,2)), d)
+[real(marginals(p))[1] real(marginals(pL))[1] real(marginals(pR))[1]]
+
+# ds = 4:8
+# nsamples = 50
+# maxiter = 10^3
+
+# errs_marg, ovls = map(ds) do d
+#     e, o = map(1:nsamples) do _
+#         AL, AR = vumps_original(A, d; maxiter)
+#         pL = InfiniteUniformTensorTrain(AL)
+#         ovlL = abs(1 - dot(p, pL))
+#         pR = InfiniteUniformTensorTrain(AR)
+#         ovlR = abs(1 - dot(p, pR))
+#         err_marg = max(
+#             maximum(abs, real(marginals(pL))[1] - real(marginals(p))[1]),
+#             maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
+#         )
+#         ovl = max(abs(1 - dot(pL, p)), abs(1 - dot(pR, p))) 
+#         err_marg, abs(1 - ovl)
+#     end |> unzip
+#     mean(log, e), mean(log, o)
+# end |> unzip
+
+# using Plots
+# pl_marg = plot(ds, errs_marg, label="error on marginals", m=:o, xlabel="bond dim")
+# pl_ovl = plot(ds, ovls, label="1 - ovl", m=:o, xlabel="bond dim")
+# plot(pl_marg, pl_ovl, legend=:bottomright, layout=(2,1), size=(400,600))
+
 
 # for it in 1:maxiter
 #     global l, L1, r, R1, AL, AR = inner_loop(l, L1, r, R1, AL, AR)
@@ -356,19 +438,7 @@ real(marginals(qq)), real(marginals(p))
 
 
 
-# function qrpos(A::AbstractMatrix)
-#     Q_, R = qr(A)
-#     Q = Matrix(Q_)
-#     d = @view R[diagind(R)]
-#     if all(>(0), d)
-#         return Q, R
-#     else
-#         D = Diagonal(sign.(d))
-#         Q = Q * D
-#         R = D * R
-#         return Q, R
-#     end
-# end
+
 
 # function left_orthonormalize(qA::InfiniteUniformTensorTrain, L0, η)
 #     A = 
