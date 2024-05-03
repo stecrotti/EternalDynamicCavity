@@ -89,8 +89,9 @@ end
 
 function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=2*10^3, tol=1e-16)
     ε = λL1 = Inf
+    L1new = copy(L1)
     for _ in 1:maxiter
-        @views L1new = sum(AL[:,:,x]' * L1 * ALtilde[:,:,x] for x in axes(ALtilde,3))
+        @views L1new .= sum(AL[:,:,x]' * L1 * ALtilde[:,:,x] for x in axes(ALtilde,3))
         λL1 = norm(L1new)
         L1new ./= λL1
         ε = norm(L1 - L1new)
@@ -102,8 +103,9 @@ function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=2*1
 end
 function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=2*10^3, tol=1e-16)
     ε = λR1 = Inf
+    R1new = copy(R1)
     for _ in 1:maxiter
-        @views R1new = sum(ARtilde[:,:,x] * R1 * AR[:,:,x]' for x in axes(ARtilde,3))
+        @views R1new .= sum(ARtilde[:,:,x] * R1 * AR[:,:,x]' for x in axes(ARtilde,3))
         λR1 = norm(R1new)
         R1new ./= λR1
         ε = norm(R1 - R1new)
@@ -193,8 +195,8 @@ function vumps_original(A, d;
 
     for it in 1:maxiter
         ### fixed point of mixed transfer operators
-        L1new, λL1 = left_fixedpoint(ALtilde, AL; L1)
-        R1new, λR1 = right_fixedpoint(ARtilde, AR; R1)
+        L1new, λL1 = left_fixedpoint(ALtilde, AL; L1, maxiter=5)
+        R1new, λR1 = right_fixedpoint(ARtilde, AR; R1, maxiter=5)
 
         # compute AC
         AC = zeros(d, d, q)
@@ -219,7 +221,7 @@ function vumps_original(A, d;
 
         ALC = copy(ALnew)
         for x in axes(A, 3)
-            ALC[:,:,x] = ALnew[:,:,x] * C
+            ALC[:,:,x] .= ALnew[:,:,x] * C
         end
         δ = norm(ALC - AC)
         δs[it] = δ
@@ -238,14 +240,14 @@ end
 
 A = rand(20, 20, 4)
 using JLD2
-# A = load("tmp.jld2")["A"]
+A = load("tmp.jld2")["A"]
 q = size(A, 3)
 m = size(A, 1)
 ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
 p = InfiniteUniformTensorTrain(A)
 
 maxiter = 100
-d = 8
+d = 6
 δs = fill(NaN, maxiter+1)
 AL, AR = vumps_original(A, d; maxiter, δs)
 pL = InfiniteUniformTensorTrain(AL)
