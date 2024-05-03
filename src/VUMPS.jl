@@ -27,19 +27,18 @@ function polar_right(A; kw...)
     U'
 end
 
-function qrpos(A::AbstractMatrix)
+function qrpos_left(A::AbstractMatrix)
     Q_, R = qr(A)
     Q = Matrix(Q_)
     d = @view R[diagind(R)]
     if all(>(0), d)
-        return Q, R
+        return Q
     else
         D = Diagonal(sign.(d))
-        Q = Q * D
-        R = D * R
-        return Q, R
+        return Q * D
     end
 end
+qrpos_right(A::AbstractMatrix) = qrpos_left(A')'
 
 function _initialize_posdef(A; rng=Random.default_rng())
     l = rand(rng, size(A,1), size(A,2))
@@ -176,14 +175,22 @@ function mixed_canonical(A;
     return ALtilde, ARtilde, ACtilde, Ctilde
 end
 
-function minAcC(AC, C)
+function minAcC(AC, C; polar=false)
     ACl = reshape(permutedims(AC, (3,1,2)), :, size(AC,2))
     ACr = reshape(permutedims(AC, (1,3,2)), size(AC,1), :)
-    alg = :newton
-    UlAC = polar_left(ACl; alg)
-    UlC = polar_left(C; alg)
-    UrAC = polar_right(ACr; alg)
-    UrC = polar_right(C; alg)
+    if polar
+        alg = :newton
+        maxiter = 100
+        UlAC = polar_left(ACl; alg, maxiter)
+        UlC = polar_left(C; alg, maxiter)
+        UrAC = polar_right(ACr; alg, maxiter)
+        UrC = polar_right(C; alg, maxiter)    
+    else
+        UlAC = qrpos_left(ACl)
+        UlC = qrpos_left(C)
+        UrAC = qrpos_right(ACr)
+        UrC = qrpos_right(C)
+    end
     ALnew = permutedims(reshape(UlAC * UlC', :,size(AC,1),size(AC,2)), (2,3,1))
     ARnew = permutedims(reshape(UrC' * UrAC, size(AC,1), :, size(AC,2)), (1,3,2))
     @debug begin
