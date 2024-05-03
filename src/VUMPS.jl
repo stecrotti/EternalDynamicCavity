@@ -87,43 +87,63 @@ function is_rightorth(AR)
 end
 
 function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=2*10^3, tol=1e-16)
-    ε = λL1 = Inf
-    L1new = copy(L1)
-    for _ in 1:maxiter
-        @views L1new .= sum(AL[:,:,x]' * L1 * ALtilde[:,:,x] for x in axes(ALtilde,3))
-        λL1 = norm(L1new)
-        L1new ./= λL1
-        ε = norm(L1 - L1new)
-        ε < tol && return L1new, λL1
-        L1 = L1new
-    end
-    @info "left_fixedpoint not converged after $maxiter iterations. ε=$ε"
-    return L1, λL1
+    left_fixedpoint!(L1, ALtilde, AL; maxiter, tol)
+    return L1
 end
+function left_fixedpoint!(L, ALtilde, AL; maxiter=2*10^3, tol=1e-16)
+    ε = Inf
+    Lold = copy(L); Lnew = copy(L)
+    for _ in 1:maxiter
+        @views Lnew .= sum(AL[:,:,x]' * Lold * ALtilde[:,:,x] for x in axes(ALtilde,3))
+        Lnew ./= norm(Lnew)
+        ε = norm(Lnew - Lold)
+        if ε < tol
+            L .= Lnew
+            return nothing
+        end
+        Lold = Lnew
+    end
+    @info "left fixedpoint not converged after $maxiter iterations. ε=$ε"
+    L .= Lnew
+    return nothing
+end
+
+
 function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=2*10^3, tol=1e-16)
-    ε = λR1 = Inf
-    R1new = copy(R1)
+    right_fixedpoint!(R1, ARtilde, AR; maxiter, tol)
+    return R1
+end
+function right_fixedpoint!(R, ARtilde, AR; maxiter=2*10^3, tol=1e-16)
+    ε = Inf
+    Rold = copy(R); Rnew = copy(R)
     for _ in 1:maxiter
-        @views R1new .= sum(ARtilde[:,:,x] * R1 * AR[:,:,x]' for x in axes(ARtilde,3))
-        λR1 = norm(R1new)
-        R1new ./= λR1
-        ε = norm(R1 - R1new)
-        ε < tol && return R1new, λR1
-        R1 = R1new
+        @views Rnew .= sum(ARtilde[:,:,x] * Rold * AR[:,:,x]' for x in axes(ARtilde,3))
+        Rnew ./= norm(Rnew)
+        ε = norm(Rnew - Rold)
+        if ε < tol
+            R .= Rnew
+            return nothing
+        end
+        Rold = Rnew
     end
-    @info "right_fixedpoint not converged after $maxiter iterations. ε=$ε"
-    return R1, λR1
+    @info "right fixedpoint not converged after $maxiter iterations. ε=$ε"
+    R .= Rnew
+    return nothing
 end
 
-function mixed_canonical(A;
-    l = _initialize_posdef(A), r = _initialize_posdef(A),
-    maxiter_ortho = 10^3, tol_ortho=1e-15)
+function mixed_canonical(A; l = _initialize_posdef(A), r = _initialize_posdef(A),
+        maxiter_ortho = 10^3, tol_ortho=1e-15)
+    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical!(l, r, A; maxiter_ortho, tol_ortho)
+    return ALtilde, ARtilde, ACtilde, Ctilde
+end
 
+function mixed_canonical!(l, r, A; maxiter_ortho = 10^3, tol_ortho=1e-15)
     lnew, λl = left_orthogonal(A; l, tol=tol_ortho, maxiter=maxiter_ortho)
     rnew, λr = right_orthogonal(A; r, tol=tol_ortho, maxiter=maxiter_ortho)
     @debug @assert λl ≈ λr
     λ = tr(lnew * rnew)
     lnew ./= sqrt(λ); rnew ./= sqrt(λ); A ./= sqrt(λl)
+    l .= lnew; r .= rnew
     L = cholesky(Hermitian(lnew)).U
     Linv = inv(L)
     R = cholesky(Hermitian(rnew)).L
@@ -208,18 +228,22 @@ function vumps_original(A, d;
         AL = rand(d, d, q),
         AR = rand(d, d, q),
         maxiter=100, tol=1e-14, verbose=true,
+        maxiter_ortho=10^3,
         δs = fill(NaN, maxiter+1))
     
-    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical(A; l, r)
 
     δ = 1.0
     δs[1] = δ
     ALnew = similar(AL); ARnew = similar(AR)
 
+    # bring to mixed canonical gauge
+    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical(A; l, r, maxiter_ortho)
+
     for it in 1:maxiter
-        ### fixed point of mixed transfer operators
-        L1new, λL1 = left_fixedpoint(ALtilde, AL; L1, maxiter=5)
-        R1new, λR1 = right_fixedpoint(ARtilde, AR; R1, maxiter=5)
+        # fixed point of mixed transfer operators
+        # L1new = left_fixedpoint(ALtilde, AL; L1, maxiter=5)
+        left_fixedpoint!(L, ALtilde, AL; maxiter=maxiter_fixedpoint)
+        right_fixedpoint!(R, ARtilde, AR; maxiter=5)
 
         # compute AC
         AC = zeros(d, d, q)
@@ -248,7 +272,58 @@ function vumps_original(A, d;
     return ALnew, ARnew
 end
 
+function one_vumps_iter!(A, l, r, AL, AR, L, R;
+        maxiter_ortho=10, maxiter_fixedpoint=10)
+    # bring to mixed canonical gauge
+    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical!(l, r, A; maxiter_ortho)
 
+    # fixed point of mixed transfer operators
+    left_fixedpoint!(L, ALtilde, AL; maxiter=maxiter_fixedpoint)
+    right_fixedpoint!(R, ARtilde, AR; maxiter=maxiter_fixedpoint)
+
+    # compute AC
+    AC = copy(AL)
+    for x in axes(A,3)
+        @views AC[:,:,x] .= L * ACtilde[:,:,x] * R
+    end
+    # compute C
+    C = L * Ctilde * R
+    # compute minAcC
+    AL, AR = minAcC(AC, C)
+
+    return AL, AR, AC, C
+end
+
+function vumps(A, d;
+        maxiter=200, tol=1e-14, verbose=false,
+        maxiter_ortho=10, maxiter_fixedpoint=10,
+        δs = fill(NaN, maxiter+1))
+
+    l = _initialize_posdef(A); r = _initialize_posdef(A)
+    L = rand(d, size(A,2)); R = rand(size(A,1), d)
+    AL = rand(d, d, q); AR = rand(d, d, q)
+    AC = zeros(d, d, q); ALC = rand(d, d, q)
+    
+    δ = 1.0
+    δs[1] = δ
+    for it in 1:maxiter
+        AL, AR, AC, C = one_vumps_iter!(A, l, r, AL, AR, L, R;
+            maxiter_ortho, maxiter_fixedpoint)
+        
+        for x in axes(A, 3)
+            ALC[:,:,x] .= AL[:,:,x] * C
+        end
+        δ = norm(ALC - AC)
+        δs[it] = δ
+        δ < tol && return AL, AR
+        verbose && println("iter $it. δ=$δ")
+    end
+    @warn "vumps not converged after $maxiter iterations. δ=$δ"
+    return AL, AR
+end
+
+using Logging
+Logging.disable_logging(Logging.Info)
 
 A = rand(20, 20, 4)
 using JLD2
@@ -258,10 +333,14 @@ m = size(A, 1)
 ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
 p = InfiniteUniformTensorTrain(A)
 
-maxiter = 100
+maxiter = 200
+maxiter_ortho = 2
+maxiter_fixedpoint = 2
+
 d = 6
 δs = fill(NaN, maxiter+1)
-AL, AR = vumps_original(A, d; maxiter, δs)
+# AL, AR = vumps_original(A, d; maxiter, δs)
+AL, AR = vumps(A, d; maxiter, δs, maxiter_ortho, maxiter_fixedpoint)
 pL = InfiniteUniformTensorTrain(AL)
 ovlL = abs(1 - dot(p, pL))
 pR = InfiniteUniformTensorTrain(AR)
@@ -271,162 +350,33 @@ err_marg = max(
     maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
 )
 @show ovlL, ovlR
-B, = truncate_vumps(permutedims(A, (1,3,2)), d)
+Aperm = permutedims(A, (1,3,2))
+B, = truncate_vumps(Aperm, d)
 pp = InfiniteUniformTensorTrain(permutedims(B, (1,3,2)))
 [real(marginals(p))[1] real(marginals(pL))[1] real(marginals(pR))[1] real(marginals(pp))[1]]
 
-# ds = 4:8
-# nsamples = 50
-# maxiter = 10^2
+ds = 4:8
+nsamples = 50
+maxiter = 10^2
 
-# errs_marg, ovls = map(ds) do d
-#     e, o = map(1:nsamples) do _
-#         AL, AR = vumps_original(A, d; maxiter)
-#         pL = InfiniteUniformTensorTrain(AL)
-#         ovlL = abs(1 - dot(p, pL))
-#         pR = InfiniteUniformTensorTrain(AR)
-#         ovlR = abs(1 - dot(p, pR))
-#         err_marg = max(
-#             maximum(abs, real(marginals(pL))[1] - real(marginals(p))[1]),
-#             maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
-#         )
-#         ovl = max(abs(1 - dot(pL, p)), abs(1 - dot(pR, p))) 
-#         err_marg, ovl
-#     end |> unzip
-#     mean(e), mean(o)
-# end |> unzip
+errs_marg, ovls = map(ds) do d
+    e, o = map(1:nsamples) do _
+        AL, AR = vumps(A, d; maxiter)
+        pL = InfiniteUniformTensorTrain(AL)
+        ovlL = abs(1 - dot(p, pL))
+        pR = InfiniteUniformTensorTrain(AR)
+        ovlR = abs(1 - dot(p, pR))
+        err_marg = max(
+            maximum(abs, real(marginals(pL))[1] - real(marginals(p))[1]),
+            maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
+        )
+        ovl = max(abs(1 - dot(pL, p)), abs(1 - dot(pR, p))) 
+        err_marg, ovl
+    end |> unzip
+    mean(e), mean(o)
+end |> unzip
 
-# using Plots
-# pl_marg = plot(ds, errs_marg, label="error on marginals", m=:o, xlabel="bond dim")
-# pl_ovl = plot(ds, ovls, label="1 - ovl", m=:o, xlabel="bond dim")
-# plot(pl_marg, pl_ovl, legend=:bottomleft, layout=(2,1), size=(400,600), margin=10Plots.mm, yaxis=:log10)
-
-
-# for it in 1:maxiter
-#     global l, L1, r, R1, AL, AR = inner_loop(l, L1, r, R1, AL, AR)
-# end
-
-
-# function inner_loop(l, L1, r, R1, AL, AR)
-#     # @views lnew = sum(A[:,:,x]' * l * A[:,:,x] for x in axes(A,3))
-#     # λl = norm(lnew)
-#     # lnew ./= λl
-#     lnew, λl = left_orthogonal(A; l, maxiter=1)
-#     # @views rnew = sum(A[:,:,x] * r * A[:,:,x]' for x in axes(A,3))
-#     # λr = norm(rnew)
-#     # rnew ./= λr
-#     rnew, λl = right_orthogonal(A; r, maxiter=1)
-#     @debug @assert λl ≈ λr
-#     λ = tr(lnew * rnew)
-#     lnew ./= sqrt(λ); rnew ./= sqrt(λ)
-#     L = cholesky(Hermitian(lnew)).U
-#     @debug (@assert L'L ≈ lnew)
-#     Linv = inv(L)
-#     R = cholesky(Hermitian(rnew)).L
-#     @debug (@assert R*R' ≈ rnew)
-#     Rinv = inv(R)
-#     AL2 = similar(A); AR2 = similar(A)
-#     for x in axes(A,3)
-#         @views AL2[:,:,x] .= L * A[:,:,x] * Linv
-#         @views AR2[:,:,x] .= Rinv * A[:,:,x] * R
-#     end
-#     # at convergence, AL and AR give the identity when contracted on 2 indices
-#     @debug begin
-#         @tullio x[j,k] := AL2[i,j,x] * AL2[i,k,x]
-#         @tullio y[j,k] := AR2[j,l,x] * AR2[k,l,x]
-#     end
-#     U, c, V = svd(L * R)
-#     Ctilde = Diagonal(c)
-#     @debug (@assert U * Ctilde * V' ≈ L * R)
-#     ALtilde = similar(A); ARtilde = similar(A)
-#     for x in axes(A,3)
-#         @views ALtilde[:,:,x] .= U' * AL2[:,:,x] * U
-#         @views ARtilde[:,:,x] .= V' * AR2[:,:,x] * V
-#     end
-
-#     ACtilde = similar(A)
-#     for x in axes(A,3)
-#         @views ACtilde[:,:,x] .= ALtilde[:,:,x] * Ctilde
-#     end
-#     @debug begin
-#         ACtilde2 = similar(A)
-#         for x in axes(A,3)
-#             @views ACtilde2[:,:,x] .= Ctilde * ARtilde[:,:,x]
-#         end
-#         @assert ACtilde2 ≈ ACtilde
-#     end
-
-#     @views L1new = sum(AL[:,:,x]' * L1 * ALtilde[:,:,x] for x in axes(A,3))
-#     λL1 = norm(L1new)
-#     L1new ./= λL1
-#     @views R1new = sum(ARtilde[:,:,x] * R1 * AR[:,:,x]' for x in axes(A,3))
-#     λR1 = norm(R1new)
-#     R1new ./= λR1
-#     # @show λL1, λR1
-
-#     AC = zeros(d, d, q)
-#     for x in axes(A,3)
-#         @views AC[:,:,x] .= L1new * ACtilde[:,:,x] * R1new
-#     end
-#     C = L1new * Ctilde * R1new
-
-#     ALnew = similar(AL); ARnew = similar(AR)
-#     alg = :halley
-#     Uleft_C = polar_left(C; alg)
-#     Uright_C = polar_right(C; alg)
-#     for x in axes(A, 3)
-#         Uleft_AC = polar_left(AC[:,:,x]; alg)
-#         Uright_AC = polar_right(AC[:,:,x]; alg)
-#         ALnew[:,:,x] .= Uleft_AC * Uleft_C'
-#         ARnew[:,:,x] .= Uright_C' * Uright_AC
-#     end
-
-#     # U_C = mypolar(C)
-#     # for x in axes(A, 3)
-#     #     U_AC = mypolar(AC[:,:,x])
-#     #     ALnew[:,:,x] = U_AC * U_C'
-#     #     ARnew[:,:,x] = U_C' * U_AC
-#     # end
-
-#     # Cinv = pinv(C; rtol = sqrt(eps(real(float(oneunit(eltype(C)))))) )
-#     # for x in axes(A, 3)
-#     #     @views ALnew[:,:,x] .= AC[:,:,x] * Cinv
-#     #     @views ARnew[:,:,x] .= Cinv * AC[:,:,x]
-#     # end
-#     λAL = norm(ALnew); ALnew ./= λAL
-#     λAR = norm(ARnew); ARnew ./= λAR
-#     @show norm(AL - ALnew)
-#     # @show norm(AR - ARnew)
-#     # @show real(marginals(InfiniteUniformTensorTrain(ALnew))[1])
-#     # @show real(marginals(InfiniteUniformTensorTrain(ARnew))[1])
-
-#     lnew, L1new, rnew, R1new, ALnew, ARnew
-# end
-
-# maxiter = 200
-
-# for it in 1:maxiter
-#     global l, L1, r, R1, AL, AR = inner_loop(l, L1, r, R1, AL, AR)
-# end
-
-# qq = InfiniteUniformTensorTrain(A)
-# p = InfiniteUniformTensorTrain(AL)
-# real(marginals(qq)), real(marginals(p))
-
-# end
-
-
-
-
-
-
-
-
-# function left_orthonormalize(qA::InfiniteUniformTensorTrain, L0, η)
-#     A = 
-#     L = L0
-#     L ./= norm(L)
-#     Lold = L
-#     AL_reshaped, L = qrpos(mul(L, A))
-    
-# end
+using Plots
+pl_marg = plot(ds, errs_marg, label="error on marginals", m=:o, xlabel="bond dim")
+pl_ovl = plot(ds, ovls, label="1 - ovl", m=:o, xlabel="bond dim")
+plot(pl_marg, pl_ovl, legend=:bottomleft, layout=(2,1), size=(400,600), margin=10Plots.mm, yaxis=:log10)
