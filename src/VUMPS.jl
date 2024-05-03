@@ -263,6 +263,25 @@ function vumps_original(A, d;
     return ALnew, ARnew
 end
 
+struct VUMPSState{T}
+    l  :: Matrix{T}
+    r  :: Matrix{T}
+    AL :: Array{T,3}
+    AR :: Array{T,3}
+    L  :: Matrix{T}
+    R  :: Matrix{T}
+
+    function VUMPSState(A::Array{T,3}, d::Integer) where T
+        l = _initialize_posdef(A)
+        r = _initialize_posdef(A)
+        L = rand(d, size(A,2))
+        R = rand(size(A,1), d)
+        AL = rand(d, d, q)
+        AR = rand(d, d, q)
+        return new{T}(l, r, AL, AR, L, R)
+    end
+end
+
 function one_vumps_iter!(A, l, r, AL, AR, L, R;
         maxiter_ortho=10, maxiter_fixedpoint=10)
     # bring to mixed canonical gauge
@@ -285,20 +304,45 @@ function one_vumps_iter!(A, l, r, AL, AR, L, R;
     return AL, AR, AC, C
 end
 
+function one_vumps_iter!(state::VUMPSState, A;
+        maxiter_ortho=10, maxiter_fixedpoint=10)
+
+    (; l, r, AL, AR, L, R) = state
+
+    # bring to mixed canonical gauge
+    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical!(l, r, A; maxiter_ortho)
+
+    # fixed point of mixed transfer operators
+    left_fixedpoint!(L, ALtilde, AL; maxiter=maxiter_fixedpoint)
+    right_fixedpoint!(R, ARtilde, AR; maxiter=maxiter_fixedpoint)
+
+    # compute AC
+    AC = copy(AL)
+    for x in axes(A,3)
+        @views AC[:,:,x] .= L * ACtilde[:,:,x] * R
+    end
+    # compute C
+    C = L * Ctilde * R
+    # compute minAcC
+    ALnew, ARnew = minAcC(AC, C)
+    state.AL .= ALnew
+    state.AR .= ARnew
+
+    return ALnew, ARnew, AC, C
+end
+
 function vumps(A, d;
         maxiter=200, tol=1e-14, verbose=false,
         maxiter_ortho=10, maxiter_fixedpoint=10,
         δs = fill(NaN, maxiter+1))
 
-    l = _initialize_posdef(A); r = _initialize_posdef(A)
-    L = rand(d, size(A,2)); R = rand(size(A,1), d)
-    AL = rand(d, d, q); AR = rand(d, d, q)
-    AC = zeros(d, d, q); ALC = rand(d, d, q)
+    state = VUMPSState(A, d)
+    ALC = rand(d, d, size(A, 3))
     
     δ = 1.0
     δs[1] = δ
     for it in 1:maxiter
-        AL, AR, AC, C = one_vumps_iter!(A, l, r, AL, AR, L, R;
+        AL, AR, AC, C = one_vumps_iter!(state, A;
             maxiter_ortho, maxiter_fixedpoint)
         
         for x in axes(A, 3)
@@ -325,9 +369,9 @@ m = size(A, 1)
 p = InfiniteUniformTensorTrain(A)
 
 maxiter = 200
-maxiter_ortho = 2
-maxiter_fixedpoint = 2
-tol = 1e-6
+maxiter_ortho = 20
+maxiter_fixedpoint = 20
+tol = 1e-8
 
 d = 6
 δs = fill(NaN, maxiter+1)
