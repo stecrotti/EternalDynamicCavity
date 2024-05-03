@@ -176,6 +176,22 @@ function mixed_canonical(A;
     return ALtilde, ARtilde, ACtilde, Ctilde
 end
 
+function minAcC(AC, C)
+    ACl = reshape(permutedims(AC, (3,1,2)), :, size(AC,2))
+    ACr = reshape(permutedims(AC, (1,3,2)), size(AC,1), :)
+    alg = :newton
+    UlAC = polar_left(ACl; alg)
+    UlC = polar_left(C; alg)
+    UrAC = polar_right(ACr; alg)
+    UrC = polar_right(C; alg)
+    ALnew = permutedims(reshape(UlAC * UlC', :,size(AC,1),size(AC,2)), (2,3,1))
+    ARnew = permutedims(reshape(UrC' * UrAC, size(AC,1), :, size(AC,2)), (1,3,2))
+    @debug begin
+        @assert is_leftorth(ALnew)
+        @assert is_rightorth(ARnew)
+    end
+    return ALnew, ARnew
+end
 
 function vumps_original(A, d; 
         l = _initialize_posdef(A),
@@ -206,19 +222,8 @@ function vumps_original(A, d;
         # compute C
         C = L1new * Ctilde * R1new
         # compute minAcC
-        ACl = reshape(permutedims(AC, (3,1,2)), :, size(AC,2))
-        ACr = reshape(permutedims(AC, (1,3,2)), size(AC,1), :)
-        UlAC = polar_left(ACl)
-        UlC = polar_left(C)
-        UrAC = polar_right(ACr)
-        UrC = polar_right(C)
-        ALnew = permutedims(reshape(UlAC * UlC', :,size(AC,1),size(AC,2)), (2,3,1))
-        ARnew = permutedims(reshape(UrC' * UrAC, size(AC,1), :, size(AC,2)), (1,3,2))
-        @debug begin
-            @assert is_leftorth(ALnew)
-            @assert is_rightorth(ARnew)
-        end
-
+        ALnew, ARnew = minAcC(AC, C)
+        
         ALC = copy(ALnew)
         for x in axes(A, 3)
             ALC[:,:,x] .= ALnew[:,:,x] * C
@@ -265,7 +270,7 @@ pp = InfiniteUniformTensorTrain(permutedims(B, (1,3,2)))
 
 # ds = 4:8
 # nsamples = 50
-# maxiter = 10^3
+# maxiter = 10^2
 
 # errs_marg, ovls = map(ds) do d
 #     e, o = map(1:nsamples) do _
@@ -279,15 +284,15 @@ pp = InfiniteUniformTensorTrain(permutedims(B, (1,3,2)))
 #             maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
 #         )
 #         ovl = max(abs(1 - dot(pL, p)), abs(1 - dot(pR, p))) 
-#         err_marg, abs(1 - ovl)
+#         err_marg, ovl
 #     end |> unzip
-#     mean(log, e), mean(log, o)
+#     mean(e), mean(o)
 # end |> unzip
 
 # using Plots
 # pl_marg = plot(ds, errs_marg, label="error on marginals", m=:o, xlabel="bond dim")
 # pl_ovl = plot(ds, ovls, label="1 - ovl", m=:o, xlabel="bond dim")
-# plot(pl_marg, pl_ovl, legend=:bottomright, layout=(2,1), size=(400,600))
+# plot(pl_marg, pl_ovl, legend=:bottomleft, layout=(2,1), size=(400,600), margin=10Plots.mm, yaxis=:log10)
 
 
 # for it in 1:maxiter
