@@ -9,15 +9,6 @@ using ProgressMeter
 using Unzip
 using Statistics
 
-function mypolar(A)
-    U, Σ, V = svd(A)
-    Uleft = U * V'
-    # Pleft = V * Diagonal(Σ) * V' |> Hermitian
-    # Pright = U * Diagonal(Σ) * U' |> Hermitian
-    # return Uleft, Pleft, Pright
-    return Uleft
-end
-
 function polar_left(A; kw...)
     U, = MatrixFactorizations.polar(A; kw...)
     U
