@@ -174,7 +174,7 @@ function mixed_canonical!(l, r, A; maxiter_ortho = 10^3, tol_ortho=1e-15)
         @views ARtilde[:,:,x] .= V' * AR2[:,:,x] * V
     end
     ACtilde = similar(A)
-    for x in axes(A,3)
+    for x in axes(ACtilde,3)
         @views ACtilde[:,:,x] .= ALtilde[:,:,x] * Ctilde
     end
     @debug begin
@@ -325,7 +325,7 @@ end
 using Logging
 Logging.disable_logging(Logging.Info)
 
-A = rand(20, 20, 4)
+# A = rand(50, 50, 4)
 using JLD2
 A = load("tmp.jld2")["A"]
 q = size(A, 3)
@@ -336,11 +336,13 @@ p = InfiniteUniformTensorTrain(A)
 maxiter = 200
 maxiter_ortho = 2
 maxiter_fixedpoint = 2
+tol = 1e-6
 
 d = 6
 δs = fill(NaN, maxiter+1)
 # AL, AR = vumps_original(A, d; maxiter, δs)
-AL, AR = vumps(A, d; maxiter, δs, maxiter_ortho, maxiter_fixedpoint)
+AL, AR = vumps(A, d; maxiter, maxiter_ortho, maxiter_fixedpoint, tol, δs)
+
 pL = InfiniteUniformTensorTrain(AL)
 ovlL = abs(1 - dot(p, pL))
 pR = InfiniteUniformTensorTrain(AR)
@@ -355,28 +357,28 @@ B, = truncate_vumps(Aperm, d)
 pp = InfiniteUniformTensorTrain(permutedims(B, (1,3,2)))
 [real(marginals(p))[1] real(marginals(pL))[1] real(marginals(pR))[1] real(marginals(pp))[1]]
 
-ds = 4:8
-nsamples = 50
-maxiter = 10^2
+# ds = 4:8
+# nsamples = 50
+# maxiter = 10^2
 
-errs_marg, ovls = map(ds) do d
-    e, o = map(1:nsamples) do _
-        AL, AR = vumps(A, d; maxiter)
-        pL = InfiniteUniformTensorTrain(AL)
-        ovlL = abs(1 - dot(p, pL))
-        pR = InfiniteUniformTensorTrain(AR)
-        ovlR = abs(1 - dot(p, pR))
-        err_marg = max(
-            maximum(abs, real(marginals(pL))[1] - real(marginals(p))[1]),
-            maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
-        )
-        ovl = max(abs(1 - dot(pL, p)), abs(1 - dot(pR, p))) 
-        err_marg, ovl
-    end |> unzip
-    mean(e), mean(o)
-end |> unzip
+# errs_marg, ovls = map(ds) do d
+#     e, o = map(1:nsamples) do _
+#         AL, AR = vumps(A, d; maxiter)
+#         pL = InfiniteUniformTensorTrain(AL)
+#         ovlL = abs(1 - dot(p, pL))
+#         pR = InfiniteUniformTensorTrain(AR)
+#         ovlR = abs(1 - dot(p, pR))
+#         err_marg = max(
+#             maximum(abs, real(marginals(pL))[1] - real(marginals(p))[1]),
+#             maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
+#         )
+#         ovl = max(abs(1 - dot(pL, p)), abs(1 - dot(pR, p))) 
+#         err_marg, ovl
+#     end |> unzip
+#     mean(e), mean(o)
+# end |> unzip
 
-using Plots
-pl_marg = plot(ds, errs_marg, label="error on marginals", m=:o, xlabel="bond dim")
-pl_ovl = plot(ds, ovls, label="1 - ovl", m=:o, xlabel="bond dim")
-plot(pl_marg, pl_ovl, legend=:bottomleft, layout=(2,1), size=(400,600), margin=10Plots.mm, yaxis=:log10)
+# using Plots
+# pl_marg = plot(ds, errs_marg, label="error on marginals", m=:o, xlabel="bond dim")
+# pl_ovl = plot(ds, ovls, label="1 - ovl", m=:o, xlabel="bond dim")
+# plot(pl_marg, pl_ovl, legend=:bottomleft, layout=(2,1), size=(400,600), margin=10Plots.mm, yaxis=:log10)
