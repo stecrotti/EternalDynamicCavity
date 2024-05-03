@@ -203,51 +203,18 @@ function vumps_original(A, d;
         end
         # compute C
         C = L1new * Ctilde * R1new
-
-        # # min AC, C
-        # alg = :svd
-        # Uleft_C = polar_left(C; alg)
-        # @assert Uleft_C'Uleft_C ≈ I "C=$C"
-        # Uright_C = polar_right(C; alg)
-        # @assert Uright_C * Uright_C' ≈ I "C=$C"
-
-        # for x in axes(A, 3)
-        #     Uleft_AC = polar_left(AC[:,:,x]; alg)
-        #     @assert Uleft_AC'Uleft_AC ≈ I
-        #     Uright_AC = polar_right(AC[:,:,x]; alg)
-        #     @assert Uright_AC * Uright_AC' ≈ I
-        #     ALnew[:,:,x] .= Uleft_AC * Uleft_C'
-        #     ARnew[:,:,x] .= Uright_C' * Uright_AC
-        # end
-        # λAL = norm(ALnew); ALnew ./= sqrt(λAL)
-        # λAR = norm(ARnew); ARnew ./= sqrt(λAR)
-
-        # Cinv = pinv(C)
-        for x in axes(A, 3)
-            # ALnew[:,:,x] .= AC[:,:,x] * Cinv
-            ALnew[:,:,x] .= AC[:,:,x] / C
-            ARnew[:,:,x] .= C \ AC[:,:,x]
-        end
-
-        # Uleft_C = qrpos(C)[1]
-        # @assert Uleft_C'Uleft_C ≈ I "C=$C"
-        # Uright_C = qrpos(C)[1]
-        # @assert Uright_C * Uright_C' ≈ I "C=$C"
-
-        # for x in axes(A, 3)
-        #     Uleft_AC = qrpos(AC[:,:,x])[1]
-        #     @assert Uleft_AC'Uleft_AC ≈ I
-        #     Uright_AC = qrpos(AC[:,:,x])[1]
-        #     @assert Uright_AC * Uright_AC' ≈ I
-        #     ALnew[:,:,x] .= Uleft_AC * Uleft_C'
-        #     ARnew[:,:,x] .= Uright_C' * Uright_AC
-        # end
-        # λAL = norm(ALnew); ALnew ./= sqrt(λAL)
-        # λAR = norm(ARnew); ARnew ./= sqrt(λAR)
-
+        # compute minAcC
+        ACl = reshape(permutedims(AC, (3,1,2)), :, size(AC,2))
+        ACr = reshape(permutedims(AC, (1,3,2)), size(AC,1), :)
+        UlAC = polar_left(ACl)
+        UlC = polar_left(C)
+        UrAC = polar_right(ACr)
+        UrC = polar_right(C)
+        ALnew = permutedims(reshape(UlAC * UlC', :,size(AC,1),size(AC,2)), (2,3,1))
+        ARnew = permutedims(reshape(UrC' * UrAC, size(AC,1), :, size(AC,2)), (1,3,2))
         @debug begin
-            is_leftorth(ALnew)
-            is_rightorth(ARnew)
+            @assert is_leftorth(ALnew)
+            @assert is_rightorth(ARnew)
         end
 
         ALC = copy(ALnew)
@@ -271,14 +238,14 @@ end
 
 A = rand(20, 20, 4)
 using JLD2
-A = load("tmp.jld2")["A"]
+# A = load("tmp.jld2")["A"]
 q = size(A, 3)
 m = size(A, 1)
 ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
 p = InfiniteUniformTensorTrain(A)
 
 maxiter = 100
-d = 7
+d = 8
 δs = fill(NaN, maxiter+1)
 AL, AR = vumps_original(A, d; maxiter, δs)
 pL = InfiniteUniformTensorTrain(AL)
@@ -290,8 +257,9 @@ err_marg = max(
     maximum(abs, real(marginals(pR))[1] - real(marginals(p))[1])
 )
 @show ovlL, ovlR
-B = truncate_vumps(permutedims(A, (1,3,2)), d)
-[real(marginals(p))[1] real(marginals(pL))[1] real(marginals(pR))[1]]
+B, = truncate_vumps(permutedims(A, (1,3,2)), d)
+pp = InfiniteUniformTensorTrain(permutedims(B, (1,3,2)))
+[real(marginals(p))[1] real(marginals(pL))[1] real(marginals(pR))[1] real(marginals(pp))[1]]
 
 # ds = 4:8
 # nsamples = 50
