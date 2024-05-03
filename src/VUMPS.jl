@@ -116,11 +116,11 @@ function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=2*
 end
 
 function mixed_canonical(A;
-        l = _initialize_posdef(A), r = _initialize_posdef(A))
-    
-    # compute AL, AR (the first version)
-    lnew, λl = left_orthogonal(A; l, tol=1e-15)
-    rnew, λr = right_orthogonal(A; r, tol=1e-15)
+    l = _initialize_posdef(A), r = _initialize_posdef(A),
+    maxiter_ortho = 10^3, tol_ortho=1e-15)
+
+    lnew, λl = left_orthogonal(A; l, tol=tol_ortho, maxiter=maxiter_ortho)
+    rnew, λr = right_orthogonal(A; r, tol=tol_ortho, maxiter=maxiter_ortho)
     @debug @assert λl ≈ λr
     λ = tr(lnew * rnew)
     lnew ./= sqrt(λ); rnew ./= sqrt(λ); A ./= sqrt(λl)
