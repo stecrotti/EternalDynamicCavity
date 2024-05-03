@@ -45,7 +45,7 @@ function one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
 end
 
 
-function iterate_bp_vumps(f::Function, sz::Integer;
+function iterate_bp_vumps(f, sz::Integer;
         maxiter=50, tol=1e-3,
         A0 = reshape(rand(2,2), 1,1,2,2),
         maxiter_vumps = 100, kw_vumps...)
