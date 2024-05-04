@@ -48,10 +48,7 @@ ds = 2:2:8
 
 maxiter = 40
 tol = 1e-15
-maxiter_vumps = 100
-alg_gauge = MPSKit.DynamicTols.DynamicTol((;maxiter=1, tol=1))
-alg_eigsolve = MPSKit.DynamicTols.DynamicTol(Arnoldi(maxiter=1, tol=1))
-alg_environments = MPSKit.DynamicTols.DynamicTol((;maxiter=1, tol=1))
+maxiter_vumps = 1
 
 Random.seed!(3)
 A0 = rand(1,1,2,2)
@@ -61,10 +58,10 @@ A0 = reshape([0.4 0.4; 0.2 0.2], 1,1,2,2)
 ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
     d = ds[a]
     A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=1e-2), d; A0, tol, 
-        maxiter, maxiter_vumps#=, alg_gauge, alg_eigsolve, alg_environments=#)
+        maxiter, maxiter_vumps)
     Base.GC.gc()
     A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0=A, tol, maxiter,
-        maxiter_vumps#=, alg_gauge, alg_eigsolve, alg_environments=#)
+        maxiter_vumps)
     println("\n####\nBond dim d=$d, $a/$(length(ds))\n#####\n")
     εs, errs, ovls, beliefs, A, As
 end |> unzip
@@ -107,4 +104,4 @@ plot!(pl_ps, title="λ=$λ, ρ=$ρ")
 
 # jldsave((@__DIR__)*"/../data/vumps_sis.jld2"; λ, ρ, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, p_ss_montecarlo, p_ss_mpbp)
 
-@telegram "vumps sis finished"
+# @telegram "vumps sis finished"
