@@ -45,34 +45,43 @@ function one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
 end
 
 
-# function iterate_bp_vumps(f::Function, sz::Integer;
-#         maxiter=50, tol=1e-3,
-#         A0 = reshape(rand(2,2), 1,1,2,2),
-#         maxiter_vumps = 100, kw_vumps...)
-#     errs = fill(NaN, maxiter)
-#     ovls = fill(NaN, maxiter)
-#     εs = fill(NaN, maxiter)
-#     beliefs = [[NaN,NaN] for _ in 1:maxiter]
-#     A = copy(A0)
-#     A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
-#     A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
-#     t = permutedims(A0_expanded_reshaped, (1,3,2))
-#     ψold = InfiniteMPS([TensorMap(t, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
-#     As = [copy(A0)]
-#     prog = Progress(maxiter, desc="Running BP + VUMPS")
-#     for it in 1:maxiter
-#         Aold = As[end]
-#         A, ε, err, ovl, b = one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
-#         push!(As, A)
-#         errs[it] = err
-#         beliefs[it] .= b
-#         ovls[it] = ovl
-#         εs[it] = ε
-#         εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
-#         next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
-#     end
-#     return A, maxiter, εs, errs, ovls, beliefs, As
-# end
+function iterate_bp_vumps_mpskit(f::Function, sz::Integer;
+        maxiter=50, tol=1e-3,
+        A0 = reshape(rand(2,2), 1,1,2,2),
+        maxiter_vumps = 100, kw_vumps...)
+    errs = fill(NaN, maxiter)
+    ovls = fill(NaN, maxiter)
+    εs = fill(NaN, maxiter)
+    beliefs = [[NaN,NaN] for _ in 1:maxiter]
+    A = copy(A0)
+    A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
+    A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
+    t = permutedims(A0_expanded_reshaped, (1,3,2))
+    ψold = InfiniteMPS([TensorMap(t, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
+    As = [copy(A0)]
+    prog = Progress(maxiter, desc="Running BP + VUMPS")
+    for it in 1:maxiter
+        Aold = As[end]
+        A, ε, err, ovl, b = one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
+        push!(As, A)
+        errs[it] = err
+        beliefs[it] .= b
+        ovls[it] = ovl
+        εs[it] = ε
+        εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
+        next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
+    end
+    return A, maxiter, εs, errs, ovls, beliefs, As
+end
+
+function is_leftorth(AL)
+    @tullio x[j,k] := AL[i,j,x] * AL[i,k,x]
+    x ≈ I
+end
+function is_rightorth(AR)
+    @tullio y[j,k] := AR[j,l,x] * AR[k,l,x]
+    y ≈ I
+end
 
 function polar_left(A; kw...)
     U, = MatrixFactorizations.polar(A; kw...)
@@ -96,15 +105,51 @@ function qrpos_left(A::AbstractMatrix)
 end
 qrpos_right(A::AbstractMatrix) = qrpos_left(A')'
 
+function qrpos(A::AbstractMatrix)
+    Q_, R = qr(A)
+    Q = Matrix(Q_)
+    d = @view R[diagind(R)]
+    if all(>(0), d)
+        return Q, R
+    else
+        D = Diagonal(sign.(d))
+        Q = Q * D
+        R = D * R
+        return Q, R
+    end
+end
+
+function qrpos_left(L::AbstractMatrix{T}, A::Array{T,3}) where T
+    @tullio LxA[i,j,x] := L[i,k] * A[k,j,x]
+    @cast LxA_[(i,x),j] := LxA[i,j,x]
+    AL_, Lnew = qrpos(LxA_)
+    @cast AL[i,j,x] := AL_[(i,x),j] x in 1:size(A,3)
+    @debug @assert is_leftorth(AL)
+    return AL, Lnew
+end
+function qrpos_right(A::Array{T,3}, R::AbstractMatrix{T}) where T
+    AxR = copy(A)
+    for x in axes(A,3)
+        @views AxR[:,:,x] .= A[:,:,x] * R[:,:]
+    end
+
+    X, Y = qrpos(reshape(permutedims(AxR, (1,3,2)), size(A,1), :)')
+    Rnew, AR_ = Y', X'
+    AR = permutedims(reshape(AR_, size(R,2), :, size(R,2)), (1,3,2))
+    @debug @assert is_rightorth(AR)
+    return AR, Rnew
+end
+
 function cholesky_psd(A)
     F = cholesky(A, RowMaximum())
     L = F.L[invperm(F.p), 1:F.rank]
-    return L
+    U = F.U[1:F.rank, invperm(F.p)]
+    return L, U
 end
 
 function _initialize_posdef(n; rng=Random.default_rng())
     l = rand(rng, n, n)
-    l = l'l
+    l = l'l + I
     l ./= norm(l)
     return l
 end
@@ -139,13 +184,83 @@ function right_orthogonal(A; r = _initialize_posdef(size(A,1)),
     return r, λr
 end
 
-function is_leftorth(AL)
-    @tullio x[j,k] := AL[i,j,x] * AL[i,k,x]
-    x ≈ I
+function left_orthogonal_qr!(L, A;
+        maxiter=2*10^3, tol=1e-16)
+    ε = λL = Inf
+    AL = copy(A)
+    for _ in 1:maxiter
+        AL, Lnew = qrpos_left(L, A)
+        λL = norm(Lnew)
+        Lnew ./= λL
+        ε = norm(L - Lnew)
+        L .= Lnew
+        ε < tol && return AL, λL
+    end
+    @info "LeftOrthogonal not converged after $maxiter iterations. ε=$ε"
+    return AL, λL
 end
-function is_rightorth(AR)
-    @tullio y[j,k] := AR[j,l,x] * AR[k,l,x]
-    y ≈ I
+function right_orthogonal_qr!(R, A;
+        maxiter=2*10^3, tol=1e-16)
+    ε = λR = Inf
+    AR = copy(A)
+    for _ in 1:maxiter
+        AR, Rnew = qrpos_right(A, R)
+        λR = norm(Rnew)
+        Rnew ./= λR
+        ε = norm(R - Rnew)
+        R .= Rnew
+        ε < tol && return AR, λR
+    end
+    @info "RightOrthogonal not converged after $maxiter iterations. ε=$ε"
+    return AR, λR
+end
+
+function mixed_canonical_qr!(L, R, A; maxiter_ortho=10^3, tol_ortho=1e-15)
+    AL, λL = left_orthogonal_qr!(L, A; tol=tol_ortho, maxiter=maxiter_ortho)
+    AR, λR = right_orthogonal_qr!(R, A; tol=tol_ortho, maxiter=maxiter_ortho)
+    @debug @assert λL ≈ λR
+    # @show λL
+    # @show maximum(norm, AL[:,:,x]*L - L*A[:,:,x] for x in 1:4)
+
+    # compute C, AC
+    U, c, V = svd(L * R)
+    Ctilde = Diagonal(c)
+    @debug (@assert U * Ctilde * V' ≈ L * R)
+    ALtilde = similar(A); ARtilde = similar(A)
+    for x in axes(A,3)
+        @views ALtilde[:,:,x] .= U' * AL[:,:,x] * U
+        @views ARtilde[:,:,x] .= V' * AR[:,:,x] * V
+    end
+    ACtilde = similar(A)
+    for x in axes(ACtilde,3)
+        @views ACtilde[:,:,x] .= ALtilde[:,:,x] * Ctilde
+    end
+    @debug begin
+        ACtilde2 = similar(A)
+        for x in axes(A,3)
+            @views ACtilde2[:,:,x] .= Ctilde * ARtilde[:,:,x]
+        end
+        @assert ACtilde2 ≈ ACtilde
+    end
+    @debug begin
+        @assert is_leftorth(ALtilde)
+        @assert is_rightorth(ARtilde)
+        qL = InfiniteUniformTensorTrain(ALtilde)
+        qR = InfiniteUniformTensorTrain(ARtilde)
+        q = InfiniteUniformTensorTrain(A)
+        @assert marginals(qL) ≈ marginals(qR) ≈ marginals(q)
+    end
+    return ALtilde, ARtilde, ACtilde, Ctilde
+end
+
+function mixed_canonical_original(A; maxiter_ortho=2*10^3)
+    m = size(A, 1); q = size(A, 3)
+    ψ = InfiniteMPS([TensorMap(permutedims(A, (1,3,2)), (ℝ^m ⊗ ℝ^q), ℝ^m)]; maxiter=maxiter_ortho)
+    ALtilde = permutedims(reshape(ψ.AL[1].data, (m,q,m)), (1,3,2))
+    ARtilde = permutedims(reshape(ψ.AR[1].data, (m,q,m)), (1,3,2))
+    ACtilde = permutedims(reshape(ψ.AC[1].data, (m,q,m)), (1,3,2))
+    Ctilde = ψ.CR[1].data
+    return ALtilde, ARtilde, ACtilde, Ctilde
 end
 
 function left_fixedpoint(ALtilde, AL; L1 = rand(d, size(ALtilde,2)), maxiter=2*10^3, tol=1e-16)
@@ -169,8 +284,6 @@ function left_fixedpoint!(L, ALtilde, AL; maxiter=2*10^3, tol=1e-16)
     L .= Lnew
     return nothing
 end
-
-
 function right_fixedpoint(ARtilde, AR; R1 = rand(size(ARtilde,1), d), maxiter=2*10^3, tol=1e-16)
     right_fixedpoint!(R1, ARtilde, AR; maxiter, tol)
     return R1
@@ -206,11 +319,12 @@ function mixed_canonical!(l, r, A; maxiter_ortho = 10^3, tol_ortho=1e-15)
     λ = tr(lnew * rnew)
     lnew ./= sqrt(λ); rnew ./= sqrt(λ); A ./= sqrt(λl)
     l .= lnew; r .= rnew
+    # @show eigvals(lnew), eigvals(Hermitian(lnew)), size(lnew, 1)
     L = cholesky(Hermitian(lnew)).U
-    # L = cholesky_psd(Hermitian(lnew))
+    # L = cholesky_psd(Hermitian(lnew))[2]
     Linv = pinv(L)
     R = cholesky(Hermitian(rnew)).L
-    # R = cholesky_psd(Hermitian(lnew))
+    # R = cholesky_psd(Hermitian(lnew))[1]
     @debug (@assert R*R' ≈ rnew)
     Rinv = pinv(R)
     AL2 = similar(A); AR2 = similar(A)
@@ -334,12 +448,17 @@ bond_dim_original(state::VUMPSState) = size(state.l, 1)
 bond_dim_trunc(state::VUMPSState) = size(state.L, 1)
 
 function one_vumps_iter!(state::VUMPSState, A;
-        maxiter_ortho=10, maxiter_fixedpoint=10)
+        maxiter_ortho=10^3, maxiter_fixedpoint=10^3#=,
+        mix_canon = mixed_canonical_original(A; maxiter_ortho)=#)
 
     (; l, r, AL, AR, L, R) = state
 
     # bring to mixed canonical gauge
-    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical!(l, r, A; maxiter_ortho)
+    # l += 1e-1*I; r += 1e-1*I
+    # ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical!(l, r, A; maxiter_ortho)
+    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical_qr!(l, r, A; maxiter_ortho)
+    # ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical_original(A; maxiter_ortho)
+    # ALtilde, ARtilde, ACtilde, Ctilde = mix_canon
 
     # fixed point of mixed transfer operators
     left_fixedpoint!(L, ALtilde, AL; maxiter=maxiter_fixedpoint)
@@ -367,7 +486,7 @@ end
 
 function iterate!(state::VUMPSState, A;
         maxiter_vumps=200, tol=1e-14, verbose=false,
-        maxiter_ortho=10, maxiter_fixedpoint=10,
+        maxiter_ortho=10^3, maxiter_fixedpoint=10^3,
         δs = fill(NaN, maxiter_vumps+1))
 
     d = bond_dim_trunc(state)
@@ -375,10 +494,12 @@ function iterate!(state::VUMPSState, A;
     
     δ = 1.0
     δs[1] = δ
+
+    # mix_canon = mixed_canonical_original(A; maxiter_ortho)
+
     for it in 1:maxiter_vumps
         AL, AR, AC, C = one_vumps_iter!(state, A;
-            maxiter_ortho, maxiter_fixedpoint)
-        
+            maxiter_ortho, maxiter_fixedpoint#=, mix_canon=#)
         for x in axes(A, 3)
             ALC[:,:,x] .= AL[:,:,x] * C
         end
@@ -391,7 +512,7 @@ function iterate!(state::VUMPSState, A;
     return state.AL, state.AR
 end
 
-function one_bpvumps_iter!(state::VUMPSState, f, A, d, Aold; kw_vumps...)
+function one_bpvumps_iter!(state::VUMPSState, f, A, d; kw_vumps...)
     @tullio BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹] := 
         f(xᵢᵗ⁺¹,[xⱼᵗ,xₖᵗ,xₗᵗ],xᵢᵗ)*A[m1,n1,xₖᵗ,xᵢᵗ]*A[m2,n2,xₗᵗ,xᵢᵗ] (xⱼᵗ in 1:2, xᵢᵗ⁺¹ in 1:2)
     @cast Q[(xᵢᵗ, xⱼᵗ, m1, m2), (n1, n2, xᵢᵗ⁺¹)] := BB[m1,m2,n1,n2,xᵢᵗ,xⱼᵗ,xᵢᵗ⁺¹]
@@ -402,42 +523,39 @@ function one_bpvumps_iter!(state::VUMPSState, f, A, d, Aold; kw_vumps...)
 
     Mresh = reshape(M, size(M,1), size(M,2), :)
     p = InfiniteUniformTensorTrain(Mresh)
-
     resize!(state, size(Mresh,1))
     Mnew, = iterate!(state, Mresh; kw_vumps...)
     Mnew ./= Mnew[1]
     q = InfiniteUniformTensorTrain(Mnew)
 
-    Anew = reshape(Mnew, size(Mnew)[1:2]..., 2, 2)
+    Anew = reshape(Mnew, size(Mnew)[1:2]..., 2, 2) |> copy
 
     err = maximum(abs, only(marginals(p)) - only(marginals(q)))
-    one_minus_ovl = 1 - abs(dot(p, q))
-    # @show ovl
-    ε = abs( 1 - dot(q, InfiniteUniformTensorTrain(Aold)))
-    b = belief(Anew); b ./= sum(b)
-    return Anew, ε, err, one_minus_ovl, b
+    ovl = abs(dot(p, q))
+    ε = abs( 1 - dot(InfiniteUniformTensorTrain(Anew), InfiniteUniformTensorTrain(A)))
+    b = belief(Anew)
+    return Anew, ε, err, ovl, b
 end
 
 function iterate_bp_vumps(f::Function, d::Integer;
         maxiter=50, tol=1e-3,
+        showprogress = true,
         A0 = reshape(rand(2,2), 1,1,2,2),
+        state = VUMPSState(size(A0,1), d, 4),
         kw_vumps...)
 
     errs = fill(NaN, maxiter)
     ovls = fill(NaN, maxiter)
     εs = fill(NaN, maxiter)
     beliefs = [[NaN,NaN] for _ in 1:maxiter]
-    s = size(A0,1)
-    # A = zeros(d,d,2,2); A[1:s,1:s,:,:] .= A0
     A = copy(A0)
-    state = VUMPSState(reshape(A, s, s, 4), d)
     As = [copy(A)]
-    prog = Progress(maxiter, desc="Running BP + VUMPS")
+    prog = Progress(maxiter, desc="Running BP + VUMPS", dt=showprogress ? 0.1 : Inf)
 
     for it in 1:maxiter
-        Aold = As[end]
-        A, ε, err, ovl, b = one_bpvumps_iter!(state, f, A, d, Aold; kw_vumps...)
-        push!(As, A)
+        Anew, ε, err, ovl, b = one_bpvumps_iter!(state, f, A, d; kw_vumps...)
+        push!(As, Anew)
+        A = Anew
         errs[it] = err
         beliefs[it] .= b
         ovls[it] = ovl

@@ -22,8 +22,8 @@ m = size(A, 1)
 ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
 p = InfiniteUniformTensorTrain(A)
 
-maxiter_vumps = 200
-maxiter_ortho = 10
+maxiter_vumps = 500
+maxiter_ortho = 200
 maxiter_fixedpoint = 10
 tol = 1e-12
 

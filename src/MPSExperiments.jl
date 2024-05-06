@@ -16,7 +16,7 @@ using TensorTrains: _reshape1, _reshapeas
 
 function pair_belief(A, B=A)
     @cast C[(aᵗ,bᵗ),(aᵗ⁺¹,bᵗ⁺¹),xᵢᵗ,xⱼᵗ] := A[aᵗ,aᵗ⁺¹,xᵢᵗ, xⱼᵗ] * B[bᵗ,bᵗ⁺¹,xⱼᵗ,xᵢᵗ]
-    q = TensorTrains.UniformTensorTrains.InfiniteUniformTensorTrain(C)
+    q = InfiniteUniformTensorTrain(C)
     return marginals(q) |> only |> real
 end
 function belief(A; bij = pair_belief(A))
@@ -32,6 +32,7 @@ export truncate_vumps, iterate_bp_vumps, belief, pair_belief
 export iMPS, canonicalize, bond_dims, overlap
 export iterate_bp_vumps_bipartite
 export vumps, VUMPSState, resize!
+export iterate_bp_vumps_mpskit
 # export transfer_operator, infinite_transfer_operator
 
 end

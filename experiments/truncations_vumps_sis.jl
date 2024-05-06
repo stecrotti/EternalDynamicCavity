@@ -13,6 +13,7 @@ include((@__DIR__)*"/../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
+Logging.disable_logging(Logging.Warn)
 
 function F(λ, ρ; γ=0)
     SUSCEPTIBLE = 1 
@@ -43,25 +44,32 @@ end
 ρ = 0.1
 f = F(λ, ρ; γ=0)
 
-ds = 2:2:8
+ds = 2:2:4
 # ds = [6]
 
-maxiter = 40
-tol = 1e-15
+maxiter = 10^4
+tol = 1e-12
 maxiter_vumps = 1
+maxiter_ortho = 1
 
 Random.seed!(3)
 A0 = rand(1,1,2,2)
-A0 = reshape([0.4 0.4; 0.2 0.2], 1,1,2,2)
+A0 = reshape([0.9 0.9; 0.2 0.2], 1,1,2,2)
+states = [VUMPSState(size(A0,1), d, 4) for d in ds]
 
 # stats = @timed begin
 ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
     d = ds[a]
-    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=1e-2), d; A0, tol, 
-        maxiter, maxiter_vumps)
+    # A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(F(λ, ρ; γ=5e-2), d; A0, tol, 
+    #     maxiter, maxiter_vumps)
+    # Base.GC.gc()
+    # A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(f, d; A0=A, tol, maxiter,
+    #     maxiter_vumps)
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=5e-2), d; A0, tol, 
+        maxiter, maxiter_vumps, maxiter_ortho)
     Base.GC.gc()
     A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0=A, tol, maxiter,
-        maxiter_vumps)
+        maxiter_vumps, maxiter_ortho, state=states[a])
     println("\n####\nBond dim d=$d, $a/$(length(ds))\n#####\n")
     εs, errs, ovls, beliefs, A, As
 end |> unzip
