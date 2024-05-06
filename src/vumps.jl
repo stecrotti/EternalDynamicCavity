@@ -123,20 +123,15 @@ function qrpos_left(L::AbstractMatrix{T}, A::Array{T,3}) where T
     @tullio LxA[i,j,x] := L[i,k] * A[k,j,x]
     @cast LxA_[(i,x),j] := LxA[i,j,x]
     AL_, Lnew = qrpos(LxA_)
-    @cast AL[i,j,x] := AL_[(i,x),j] x in 1:size(A,3)
-    @debug @assert is_leftorth(AL)
+    @cast AL[i,j,x] := AL_[(i,x),j] (x in 1:size(A,3))
     return AL, Lnew
 end
 function qrpos_right(A::Array{T,3}, R::AbstractMatrix{T}) where T
-    AxR = copy(A)
-    for x in axes(A,3)
-        @views AxR[:,:,x] .= A[:,:,x] * R[:,:]
-    end
-
-    X, Y = qrpos(reshape(permutedims(AxR, (1,3,2)), size(A,1), :)')
+    @tullio AxR[i,j,x] := A[i,k,x] * R[k,j] 
+    @cast AxR_[i,(j,x)] := AxR[i,j,x]
+    X, Y = qrpos(AxR_')
     Rnew, AR_ = Y', X'
-    AR = permutedims(reshape(AR_, size(R,2), :, size(R,2)), (1,3,2))
-    @debug @assert is_rightorth(AR)
+    @cast AR[i,j,x] := AR_[i,(j,x)] (x in 1:size(A,3))
     return AR, Rnew
 end
 
@@ -448,7 +443,7 @@ bond_dim_original(state::VUMPSState) = size(state.l, 1)
 bond_dim_trunc(state::VUMPSState) = size(state.L, 1)
 
 function one_vumps_iter!(state::VUMPSState, A;
-        maxiter_ortho=10^3, maxiter_fixedpoint=10^3#=,
+        maxiter_ortho=10^3, maxiter_fixedpoint=10^3, tol_ortho=1e-16, tol_fixedpoint=1e-16#=,
         mix_canon = mixed_canonical_original(A; maxiter_ortho)=#)
 
     (; l, r, AL, AR, L, R) = state
@@ -456,13 +451,13 @@ function one_vumps_iter!(state::VUMPSState, A;
     # bring to mixed canonical gauge
     # l += 1e-1*I; r += 1e-1*I
     # ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical!(l, r, A; maxiter_ortho)
-    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical_qr!(l, r, A; maxiter_ortho)
+    ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical_qr!(l, r, A; maxiter_ortho, tol_ortho)
     # ALtilde, ARtilde, ACtilde, Ctilde = mixed_canonical_original(A; maxiter_ortho)
     # ALtilde, ARtilde, ACtilde, Ctilde = mix_canon
 
     # fixed point of mixed transfer operators
-    left_fixedpoint!(L, ALtilde, AL; maxiter=maxiter_fixedpoint)
-    right_fixedpoint!(R, ARtilde, AR; maxiter=maxiter_fixedpoint)
+    left_fixedpoint!(L, ALtilde, AL; maxiter=maxiter_fixedpoint, tol=tol_fixedpoint)
+    right_fixedpoint!(R, ARtilde, AR; maxiter=maxiter_fixedpoint, tol=tol_fixedpoint)
 
     # compute AC
     AC = copy(AL)
@@ -485,8 +480,9 @@ function vumps(A, d; kwargs...)
 end
 
 function iterate!(state::VUMPSState, A;
-        maxiter_vumps=200, tol=1e-14, verbose=false,
+        maxiter_vumps=200, tol_vumps=1e-16, verbose=false,
         maxiter_ortho=10^3, maxiter_fixedpoint=10^3,
+        tol_ortho=1e-16, tol_fixedpoint=1e-16,
         δs = fill(NaN, maxiter_vumps+1))
 
     d = bond_dim_trunc(state)
@@ -499,13 +495,13 @@ function iterate!(state::VUMPSState, A;
 
     for it in 1:maxiter_vumps
         AL, AR, AC, C = one_vumps_iter!(state, A;
-            maxiter_ortho, maxiter_fixedpoint#=, mix_canon=#)
+            maxiter_ortho, maxiter_fixedpoint, tol_ortho, tol_fixedpoint#=, mix_canon=#)
         for x in axes(A, 3)
             ALC[:,:,x] .= AL[:,:,x] * C
         end
         δ = norm(ALC - AC)
         δs[it] = δ
-        δ < tol && return AL, AR
+        δ < tol_vumps && return AL, AR
         verbose && println("iter $it. δ=$δ")
     end
     @warn "vumps not converged after $maxiter_vumps iterations. δ=$δ"

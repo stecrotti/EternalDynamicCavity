@@ -22,15 +22,15 @@ m = size(A, 1)
 ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
 p = InfiniteUniformTensorTrain(A)
 
-maxiter_vumps = 500
-maxiter_ortho = 200
-maxiter_fixedpoint = 10
-tol = 1e-12
+maxiter_vumps = 1000
+maxiter_ortho = 1000; tol_ortho = 1e-4
+maxiter_fixedpoint = 1000; tol_fixedpoint = 1e-4
+tol_vumps = 1e-12
 
 d = 6
 δs = fill(NaN, maxiter_vumps+1)
 # AL, AR = vumps_original(A, d; maxiter, δs)
-AL, AR = vumps(A, d; maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol, δs)
+AL, AR = vumps(A, d; tol_vumps, δs)
 
 pL = InfiniteUniformTensorTrain(AL)
 ovlL = abs(1 - dot(p, pL))

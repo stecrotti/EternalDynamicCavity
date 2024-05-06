@@ -44,18 +44,19 @@ end
 ρ = 0.1
 f = F(λ, ρ; γ=0)
 
-ds = 2:2:4
+ds = 2:2:6
 # ds = [6]
 
-maxiter = 10^4
+maxiter = 20
 tol = 1e-12
-maxiter_vumps = 1
-maxiter_ortho = 1
+maxiter_vumps = 1000
+maxiter_ortho = 1000; tol_ortho = 1e-8
+maxiter_fixedpoint = 1000; tol_fixedpoint = 1e-8
+tol_vumps = 1e-10
 
 Random.seed!(3)
 A0 = rand(1,1,2,2)
 A0 = reshape([0.9 0.9; 0.2 0.2], 1,1,2,2)
-states = [VUMPSState(size(A0,1), d, 4) for d in ds]
 
 # stats = @timed begin
 ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
@@ -66,10 +67,10 @@ states = [VUMPSState(size(A0,1), d, 4) for d in ds]
     # A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(f, d; A0=A, tol, maxiter,
     #     maxiter_vumps)
     A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=5e-2), d; A0, tol, 
-        maxiter, maxiter_vumps, maxiter_ortho)
+        maxiter, tol_vumps, tol_ortho, tol_fixedpoint)
     Base.GC.gc()
     A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0=A, tol, maxiter,
-        maxiter_vumps, maxiter_ortho, state=states[a])
+        tol_vumps, tol_ortho, tol_fixedpoint)
     println("\n####\nBond dim d=$d, $a/$(length(ds))\n#####\n")
     εs, errs, ovls, beliefs, A, As
 end |> unzip
