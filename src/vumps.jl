@@ -474,8 +474,7 @@ function one_vumps_iter!(state::VUMPSState, A;
     return ALnew, ARnew, AC, C
 end
 
-function vumps(A, d; kwargs...)
-    state = VUMPSState(A, d)
+function vumps(A, d; state = VUMPSState(A, d), kwargs...)
     iterate!(state, A; kwargs...)
 end
 
@@ -519,6 +518,7 @@ function one_bpvumps_iter!(state::VUMPSState, f, A, d; kw_vumps...)
 
     Mresh = reshape(M, size(M,1), size(M,2), :)
     p = InfiniteUniformTensorTrain(Mresh)
+    # VUMPS iteration
     resize!(state, size(Mresh,1))
     Mnew, = iterate!(state, Mresh; kw_vumps...)
     Mnew ./= Mnew[1]

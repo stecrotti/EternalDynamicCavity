@@ -23,14 +23,15 @@ m = size(A, 1)
 p = InfiniteUniformTensorTrain(A)
 
 maxiter_vumps = 1000
-maxiter_ortho = 1000; tol_ortho = 1e-4
-maxiter_fixedpoint = 1000; tol_fixedpoint = 1e-4
-tol_vumps = 1e-12
+maxiter_ortho = 1; tol_ortho = 1e-30
+maxiter_fixedpoint = 1; tol_fixedpoint = 1e-30
+tol_vumps = 1e-16
 
 d = 6
 δs = fill(NaN, maxiter_vumps+1)
 # AL, AR = vumps_original(A, d; maxiter, δs)
-AL, AR = vumps(A, d; tol_vumps, δs)
+state = VUMPSState(size(A,1), d, size(A,3))
+AL, AR = vumps(A, d; tol_vumps, δs, state, maxiter_vumps)
 
 pL = InfiniteUniformTensorTrain(AL)
 ovlL = abs(1 - dot(p, pL))
