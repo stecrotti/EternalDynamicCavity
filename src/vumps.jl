@@ -220,7 +220,6 @@ function mixed_canonical_qr!(L, R, A; maxiter_ortho=10^3, tol_ortho=1e-15)
     # compute C, AC
     U, c, V = svd(L * R)
     Ctilde = Diagonal(c)
-    @debug (@assert U * Ctilde * V' ≈ L * R)
     ALtilde = similar(A); ARtilde = similar(A)
     for x in axes(A,3)
         @views ALtilde[:,:,x] .= U' * AL[:,:,x] * U
@@ -229,21 +228,6 @@ function mixed_canonical_qr!(L, R, A; maxiter_ortho=10^3, tol_ortho=1e-15)
     ACtilde = similar(A)
     for x in axes(ACtilde,3)
         @views ACtilde[:,:,x] .= ALtilde[:,:,x] * Ctilde
-    end
-    @debug begin
-        ACtilde2 = similar(A)
-        for x in axes(A,3)
-            @views ACtilde2[:,:,x] .= Ctilde * ARtilde[:,:,x]
-        end
-        @assert ACtilde2 ≈ ACtilde
-    end
-    @debug begin
-        @assert is_leftorth(ALtilde)
-        @assert is_rightorth(ARtilde)
-        qL = InfiniteUniformTensorTrain(ALtilde)
-        qR = InfiniteUniformTensorTrain(ARtilde)
-        q = InfiniteUniformTensorTrain(A)
-        @assert marginals(qL) ≈ marginals(qR) ≈ marginals(q)
     end
     return ALtilde, ARtilde, ACtilde, Ctilde
 end
@@ -557,7 +541,7 @@ function iterate_bp_vumps(f::Function, d::Integer;
         ovls[it] = ovl
         εs[it] = ε
         εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
-        next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
+        next!(prog, showvalues=[(:ε, "$(εs[it])/$tol"), (:it, "$it/$maxiter")])
     end
     return A, maxiter, εs, errs, ovls, beliefs, As
 end
