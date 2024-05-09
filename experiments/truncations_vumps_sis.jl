@@ -48,9 +48,9 @@ ds = 2:2:6
 
 maxiter = 20
 tol = 1e-12
-maxiter_vumps = 1000
-maxiter_ortho = 1; tol_ortho = 1e-8
-maxiter_fixedpoint = 1; tol_fixedpoint = 1e-8
+maxiter_vumps = 100
+maxiter_ortho = 100; tol_ortho = 1e-8
+maxiter_fixedpoint = 100; tol_fixedpoint = 1e-8
 tol_vumps = 1e-12
 
 Random.seed!(3)
@@ -58,27 +58,42 @@ A0 = rand(1,1,2,2)
 A0 = reshape([10 10; 0.2 0.2], 1,1,2,2)
 
 d = 6
+
+stats = @timed begin
 A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=5e-2), d; A0, tol, maxiter,
-    maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps, tol_ortho, 
+    maxiter_vumps=10, maxiter_ortho=10, maxiter_fixedpoint=10, tol_vumps, tol_ortho, 
     tol_fixedpoint)
+#A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=5e-2), d; A0=A, tol, maxiter,
+#    maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps, tol_ortho, 
+#    tol_fixedpoint)
 Base.GC.gc()
 state = VUMPSState(size(A0,1), d, 4)
+A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=0.0), d; A0=A, tol=1e-7, maxiter,
+    maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps=1e-7, tol_ortho=1e-7,
+    tol_fixedpoint=1e-7, state)
+
 A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=0.0), d; A0=A, tol, maxiter,
-    maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps, tol_ortho, 
+    maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps, tol_ortho,
     tol_fixedpoint, state)
 
-state_old = deepcopy(state); Aold = deepcopy(A)
+end
+@show stats.time
 
-iterate_bp_vumps(F(λ, ρ; γ=0.0), d; A0=A, tol=0, maxiter=1, maxiter_vumps=1, maxiter_ortho=1,
-    maxiter_fixedpoint=1, state)
+stats = @timed begin
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(F(λ, ρ; γ=5e-2), d; A0, tol, 
+        maxiter, maxiter_vumps)
+    Base.GC.gc()
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(F(λ, ρ; γ=0.0), d; A0=A, tol, 
+        maxiter, maxiter_vumps)
+end
+@show stats.time
 
 
 
 
 
 
-
-# # stats = @timed begin
+# stats = @timed begin
 # ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
 #     d = ds[a]
 #     # A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(F(λ, ρ; γ=5e-2), d; A0, tol, 
@@ -94,8 +109,8 @@ iterate_bp_vumps(F(λ, ρ; γ=0.0), d; A0=A, tol=0, maxiter=1, maxiter_vumps=1, 
 #     println("\n####\nBond dim d=$d, $a/$(length(ds))\n#####\n")
 #     εs, errs, ovls, beliefs, A, As
 # end |> unzip
-# # end
-# # @show stats.time
+# end
+# @show stats.time
 
 # using Plots
 

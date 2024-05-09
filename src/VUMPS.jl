@@ -22,16 +22,16 @@ m = size(A, 1)
 ψ = InfiniteMPS([TensorMap(A, (ℝ^m ⊗ ℝ^q), ℝ^m)])
 p = InfiniteUniformTensorTrain(A)
 
-maxiter_vumps = 1000
-maxiter_ortho = 1; tol_ortho = 1e-30
-maxiter_fixedpoint = 1; tol_fixedpoint = 1e-30
-tol_vumps = 1e-16
+maxiter_vumps = 10^6
+maxiter_ortho = 1; tol_ortho = 0
+maxiter_fixedpoint = 1; tol_fixedpoint = 0
+tol_vumps = 1e-12
 
 d = 6
 δs = fill(NaN, maxiter_vumps+1)
 # AL, AR = vumps_original(A, d; maxiter, δs)
-state = VUMPSState(size(A,1), d, size(A,3))
-AL, AR = vumps(A, d; tol_vumps, δs, state, maxiter_vumps)
+AL, AR = vumps(A, d; tol_vumps, δs, maxiter_vumps, maxiter_fixedpoint, maxiter_ortho,
+    tol_ortho, tol_fixedpoint)
 
 pL = InfiniteUniformTensorTrain(AL)
 ovlL = abs(1 - dot(p, pL))

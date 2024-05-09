@@ -45,7 +45,7 @@ function one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
 end
 
 
-function iterate_bp_vumps_mpskit(f::Function, sz::Integer;
+function iterate_bp_vumps_mpskit(f, sz::Integer;
         maxiter=50, tol=1e-3,
         A0 = reshape(rand(2,2), 1,1,2,2),
         maxiter_vumps = 100, kw_vumps...)
@@ -517,7 +517,7 @@ function one_bpvumps_iter!(state::VUMPSState, f, A, d; kw_vumps...)
     return Anew, ε, err, ovl, b
 end
 
-function iterate_bp_vumps(f::Function, d::Integer;
+function iterate_bp_vumps(f, d::Integer;
         maxiter=50, tol=1e-3,
         showprogress = true,
         A0 = reshape(rand(2,2), 1,1,2,2),
