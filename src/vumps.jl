@@ -44,32 +44,42 @@ function one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
     return A, ε, err, ovl, b
 end
 
+struct CallbackBPVUMPS{Progress}
+    prog :: Progress
+end
+CallbackBPVUMPS(maxiter::Integer) = CallbackBPVUMPS(Progress(maxiter, desc="Running BP + VUMPS"))
+
+function (cb::CallbackBPVUMPS)(it, maxiter, ε, tol, f)
+    exit = ε < tol
+    next!(cb.prog, showvalues=[(:it, "$it/$maxiter"), (:ε, "$(ε)/$tol")])
+    return exit
+end
+
 
 function iterate_bp_vumps_mpskit(f, sz::Integer;
         maxiter=50, tol=1e-3,
         A0 = reshape(rand(2,2), 1,1,2,2),
+        callback = CallbackBPVUMPS(Progress(maxiter, desc="Running BP + VUMPS")),
         maxiter_vumps = 100, kw_vumps...)
-    errs = fill(NaN, maxiter)
-    ovls = fill(NaN, maxiter)
-    εs = fill(NaN, maxiter)
-    beliefs = [[NaN,NaN] for _ in 1:maxiter]
+    errs = zeros(0)
+    ovls = zeros(0)
+    εs = zeros(0)
+    beliefs = fill(zeros(2), 0)
     A = copy(A0)
     A0_expanded = zeros(sz,sz,2,2); A0_expanded[1:size(A0,1),1:size(A0,2),:,:] .= A0
     A0_expanded_reshaped = reshape(A0_expanded, size(A0_expanded,1), size(A0_expanded,2), :)
     t = permutedims(A0_expanded_reshaped, (1,3,2))
     ψold = InfiniteMPS([TensorMap(t, (ℝ^sz ⊗ ℝ^4), ℝ^sz)])
     As = [copy(A0)]
-    prog = Progress(maxiter, desc="Running BP + VUMPS")
     for it in 1:maxiter
         Aold = As[end]
         A, ε, err, ovl, b = one_bpvumps_iter(f, A, sz, ψold, Aold, maxiter_vumps; kw_vumps...)
         push!(As, A)
-        errs[it] = err
-        beliefs[it] .= b
-        ovls[it] = ovl
-        εs[it] = ε
-        εs[it] < tol && return A, maxiter, εs, errs, ovls, beliefs, As
-        next!(prog, showvalues=[(:ε, "$(εs[it])/$tol")])
+        push!(errs, err)
+        push!(beliefs, b)
+        push!(ovls, ovl)
+        push!(εs, ε)
+        callback(it, maxiter, ε, tol, f) && return A, it, εs, errs, ovls, beliefs, As
     end
     return A, maxiter, εs, errs, ovls, beliefs, As
 end
