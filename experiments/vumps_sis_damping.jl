@@ -15,6 +15,7 @@ include((@__DIR__)*"/../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
+Logging.disable_logging(Logging.Warn)
 
 λ = 0.07
 ρ = 0.1
@@ -80,7 +81,7 @@ savefig(pl, (@__DIR__)*"/vumps_sis_damping2.pdf")
 
 ps = [b[findlast(x->!all(isnan, x), b)][2] for b in bel]
 pl_ps = scatter(Δts, ps, xlabel="Δt", ylabel="p(xᵢ=INFECT)", label="",
-    ms=2, c=:black, ylims=(0,1))
+    ms=2.6, c=:black, ylims=(0,1))
 hline!(pl_ps, [p_ss_cme], label="CME", ls=:dash)
 hline!(pl_ps, [p_gillespie], label="gillespie", ls=:dash)
 plot!(pl_ps, title="λ=$λ, ρ=$ρ, d=$d", xaxis=:log10)

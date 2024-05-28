@@ -15,10 +15,11 @@ include((@__DIR__)*"/../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
+Logging.disable_logging(Logging.Warn)
 
 λ = 0.07
 ρ = 0.1
-d = 12
+d = 14
 Δts = 10.0 .^ (0:-0.5:-3)
 αs = pushfirst!(zeros(length(Δts)-1), 1e-2)
 
@@ -55,9 +56,24 @@ k = 3
 p_ss_cme = (x*(k-1)-1) / (x*(k-1)-1 + (k-1)/k)
 
 
-pl1 = plot(ps, xlabel="iter", ylabel="p(xᵢ=INFECT)")
+pl1 = plot(ps, xlabel="iter", ylabel="p(xᵢ=INFECT)", label="")
 vline!(pl1, cumsum(iters), label="", ls=:dash)
+# for it in eachindex(cumsum(iters))
+#     vline!(pl1, cumsum(iters)[it:it], ls=:dash, label="Δt=$(Δts[it])")
+# end
 hline!(pl1, [p_gillespie], label="gillespie")
 hline!(pl1, [p_ss_cme], label="CME")
+title!(pl1, "d=$d")
+plot!(pl1, ylims=(0,1))
+
+savefig(pl1, (@__DIR__)*"/vumps_sis_damping_progressive2.pdf")
+
+pl_ps = scatter(Δts, ps[cumsum(iters)], ms=2.5, c=:black, label="",
+    ylabel="p(xᵢ=INFECT)")
+hline!(pl_ps, [p_ss_cme], label="CME", ls=:dash)
+hline!(pl_ps, [p_gillespie], label="gillespie", ls=:dash)
+plot!(pl_ps, title="λ=$λ, ρ=$ρ, d=$d", xaxis=:log10)
+savefig(pl_ps, "vumps_sis_damping_progressive_dampings2.pdf")
+
 
 @telegram "Vumps SIS damping progressive"
