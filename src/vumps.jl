@@ -55,7 +55,6 @@ function (cb::CallbackBPVUMPS)(it, maxiter, ε, tol, f)
     return exit
 end
 
-
 function iterate_bp_vumps_mpskit(f, sz::Integer;
         maxiter=50, tol=1e-3,
         A0 = reshape(rand(2,2), 1,1,2,2),
