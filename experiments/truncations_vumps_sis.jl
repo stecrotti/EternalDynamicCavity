@@ -96,7 +96,7 @@ x = λ / ρ
 k = 3
 p_ss_cme = (x*(k-1)-1) / (x*(k-1)-1 + (k-1)/k)
 
-# pls = map(zip(ε, err, ovl, ds, bel)) do (εs, errs, ovls, d, beliefs)
+pls = map(zip(ε, err, ovl, ds, bel)) do (εs, errs, ovls, d, beliefs)
     p1 = plot(replace(εs, 0.0 => NaN), xlabel="iter", yaxis=:log10, ylabel="converg error", label="")
     p2 = plot(errs, xlabel="iter", yaxis=:log10, ylabel="trunc err on marginals", label="", title="d=$d")
     p3 = plot(abs.(1 .- replace(ovls, 1.0 => NaN)), xlabel="iter", yaxis=:log10, ylabel="|1-trunc ovl|", label="")
