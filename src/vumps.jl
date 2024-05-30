@@ -55,17 +55,6 @@ function (cb::CallbackBPVUMPS)(it, maxiter, ε, tol, f)
     return exit
 end
 
-struct CallbackBPVUMPS{Progress}
-    prog :: Progress
-end
-CallbackBPVUMPS(maxiter::Integer) = CallbackBPVUMPS(Progress(maxiter, desc="Running BP + VUMPS"))
-
-function (cb::CallbackBPVUMPS)(it, maxiter, ε, tol, f)
-    exit = ε < tol
-    next!(cb.prog, showvalues=[(:it, "$it/$maxiter"), (:ε, "$(ε)/$tol")])
-    return exit
-end
-
 
 function iterate_bp_vumps_mpskit(f, sz::Integer;
         maxiter=50, tol=1e-3,
