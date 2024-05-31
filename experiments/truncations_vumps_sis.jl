@@ -19,7 +19,7 @@ Logging.disable_logging(Logging.Info)
 ρ = 0.1
 p0 = 0.9
 
-ds = 6:2:16
+ds = [4]
 # ds = [6]
 
 maxiter = 50
@@ -36,19 +36,19 @@ A0 = reshape([10 10; 0.2 0.2], 1,1,2,2)
 d = 6
 
 stats = @timed begin
-A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=5e-2), d; A0, tol, maxiter,
+A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(SISFactor(λ, ρ; α=5e-2), d; A0, tol, maxiter,
     maxiter_vumps=10, maxiter_ortho=10, maxiter_fixedpoint=10, tol_vumps, tol_ortho, 
     tol_fixedpoint)
-#A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=5e-2), d; A0=A, tol, maxiter,
+#A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(SISFactor(λ, ρ; α=5e-2), d; A0=A, tol, maxiter,
 #    maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps, tol_ortho, 
 #    tol_fixedpoint)
 Base.GC.gc()
 state = VUMPSState(size(A0,1), d, 4)
-A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=0.0), d; A0=A, tol=1e-7, maxiter,
+A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(SISFactor(λ, ρ; α=0.0), d; A0=A, tol=1e-7, maxiter,
     maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps=1e-7, tol_ortho=1e-7,
     tol_fixedpoint=1e-7, state)
 
-A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(F(λ, ρ; γ=0.0), d; A0=A, tol, maxiter,
+A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(SISFactor(λ, ρ; α=0.0), d; A0=A, tol, maxiter,
     maxiter_vumps, maxiter_ortho, maxiter_fixedpoint, tol_vumps, tol_ortho,
     tol_fixedpoint, state)
 
@@ -56,10 +56,10 @@ end
 @show stats.time
 
 stats = @timed begin
-    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(F(λ, ρ; γ=5e-2), d; A0, tol, 
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(SISFactor(λ, ρ; α=5e-2), d; A0, tol, 
         maxiter, maxiter_vumps)
     Base.GC.gc()
-    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(F(λ, ρ; γ=0.0), d; A0=A, tol, 
+    A, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(SISFactor(λ, ρ; α=0.0), d; A0=A, tol, 
         maxiter, maxiter_vumps)
 end
 @show stats.time
