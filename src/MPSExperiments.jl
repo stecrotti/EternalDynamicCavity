@@ -23,6 +23,7 @@ function belief(A; bij = pair_belief(A))
     sum(bij, dims=2) |> vec
 end
 
+# include("mpbp.jl")
 include("vumps.jl")
 include("vidal.jl")
 # include("VUMPS.jl")
@@ -33,6 +34,5 @@ export iMPS, canonicalize, bond_dims, overlap
 export iterate_bp_vumps_bipartite
 export vumps, VUMPSState, resize!
 export iterate_bp_vumps_mpskit, CallbackBPVUMPS
-# export transfer_operator, infinite_transfer_operator
 
 end
