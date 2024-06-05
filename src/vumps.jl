@@ -1,6 +1,6 @@
-function truncate_vumps(A::Array, d; 
+function truncate_vumps(A::Array{F,3}, d; 
         ψ = InfiniteMPS([TensorMap(rand(d, size(A,2), d), (ℝ^d ⊗ ℝ^size(A,2)), ℝ^d)]),
-        maxiter = 100, kw_vumps...)
+        maxiter = 100, kw_vumps...) where {F}
     Q = size(A, 2)
     m = size(A, 1)
     @assert size(A, 3) == m
