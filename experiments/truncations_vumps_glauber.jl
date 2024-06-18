@@ -6,6 +6,7 @@ using TensorTrains, Random, Tullio, TensorCast
 using LinearAlgebra
 using ProgressMeter
 using MatrixProductBP, MatrixProductBP.Models
+using JLD2
 
 include((@__DIR__)*"/../../telegram/notifications.jl")
 
@@ -30,11 +31,11 @@ f = F(J, β, h)
 
 (m_ss,) = equilibrium_observables(RandomRegular(3), J; β, h)
 
-ds = 1:2:13
+ds = 1:2:17
 
-maxiter = 30
+maxiter = 50
 tol = 1e-15
-maxiter_vumps = 10
+maxiter_vumps = 100
 
 # Random.seed!(3)
 A0 = rand(1,1,2,2)
@@ -43,7 +44,8 @@ A_current = copy(A0)
 
 ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
     d = ds[a]
-    global A_current, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0=A_current, tol, maxiter, maxiter_vumps)
+    A0new = A_current .+ 1e-3*randn.()
+    global A_current, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps_mpskit(f, d; A0=A0new, tol, maxiter, maxiter_vumps)
     εs, errs, ovls, beliefs, copy(A_current), As
 end |> unzip
 
@@ -68,6 +70,6 @@ hline!(pl_ps, [m_ss], label="true steady-state")
 plot!(pl_ps, title="Glauber J=$J, h=$h, β=$β")
 savefig(pl_ps, "vumps_glauber_bonddims3.pdf")
 
-jldsave((@__DIR__)*"/../data/vumps_glauber.jld2"; J, h, β, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, m_ss)
+jldsave((@__DIR__)*"/../data/vumps_glauber2.jld2"; J, h, β, ds, A0, ε, err, ovl, bel, AA, A, maxiter, ps, m_ss)
 
 @telegram "vumps glauber finished"
