@@ -7,47 +7,105 @@ using LinearAlgebra
 using ProgressMeter
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
+using Plots
 
 include("../src/mpbp.jl")
 
-# include((@__DIR__)*"/../../telegram/notifications.jl")
+include((@__DIR__)*"/../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
 Logging.disable_logging(Logging.Warn)
 
-J = 0.9
+J = 0.6
 β = 1.0
 h = 0.0
 k = 3
 T = 0
 
-maxiter = 50
-tol = 1e-15
+(m_ss, r_ss) = equilibrium_observables(RandomRegular(k), J; β, h)
 
-maxiter_vumps = 100
+ds = 1:2:19
+
+maxiter = 60
+tol = 1e-14
+maxiter_vumps = 10
 tol_vumps = 1e-14
-
-d = 10
-svd_trunc = TruncVUMPS(d; maxiter=maxiter_vumps, tol=tol_vumps)
-maxiter = 20
-tol = 0
 
 spin(x,args...) = 3-2x
 bp = mpbp_stationary_infinite_graph(k, [HomogeneousGlauberFactor(J, h, β)], 2)
 cb = CB_BP(bp; f=spin)
-iters, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
 
-(m_ss, r_ss) = equilibrium_observables(RandomRegular(3), J; β, h)
+iters, cbs = map(eachindex(ds)) do a
+    only(bp.μ).tensor = reshape([10 10; 0.1 0.1], 1, 1, 2, 2)
+    svd_trunc = TruncVUMPS(ds[a]; maxiter=maxiter_vumps, tol=tol_vumps)
+    cb = CB_BP(bp; f=spin)
+    iter, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
+end |> unzip
 
-using Plots
-pl1 = plot([only(only(m)) for m in cb.m], xlabel="iter", ylabel="magnetiz")
-hline!(pl1, [m_ss, -m_ss], ls=:dash, ylims=(-1,1))
+m_bp = [[only(only(m)) for m in cb.m] for cb in cbs]
 
-pl2 = hline([autocorrelations(spin, bp)], xlabel="iter", ylabel="2-time autocorr")
-hline!(pl2, [r_ss], ls=:dash, ylims=(-1,1))
+pls = map(zip(ds, m_bp)) do (d, m)
+    pl = plot(m; title="d=$d", xlabel="iter", label="magnetiz", size=(500,200))
+    hline!(pl, [m_ss], label="eq", ls=:dash, ylims=(0,1), titlefontsize=8, labelfontsize=8, 
+        margin=7Plots.mm, legend=:bottomleft)
+    pl
+end
 
-plot(pl1, pl2)
+pl = plot(pls..., layout=(length(ds), 1), size=(500,length(ds)*200))
+savefig(pl, (@__DIR__)*"/vumps_glauber_ferro.pdf")
+
+ps = [m[end] for m in m_bp]
+pl_ps = scatter(ds, ps, xlabel="bond dim", ylabel="magnetiz", label="",
+    ms=3, c=:black, xticks=ds)
+hline!(pl_ps, [m_ss], label="true steady-state")
+plot!(pl_ps, title="Glauber J=$J, h=$h, β=$β")
+savefig(pl_ps, (@__DIR__)*"/vumps_glauber_ferro_bonddims.pdf")
+
+@telegram "vumps glauber finished"
+
+jldsave((@__DIR__)*"/../data/vumps_glauber_ferro.jld2"; J, h, β, ds, m_bp, ps, m_ss)
+
+
+# iters, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
+
+# # Random.seed!(3)
+# A0 = rand(1,1,2,2)
+# A0 = reshape([0.4 0.4; 0.2 0.2], 1, 1, 2, 2)
+# A_current = copy(A0)
+
+# ε, err, ovl, bel, AA, A = map(eachindex(ds)) do a
+#     d = ds[a]
+#     global A_current, _, εs, errs, ovls, beliefs, As = iterate_bp_vumps(f, d; A0=A_current, tol, maxiter, maxiter_vumps)
+#     εs, errs, ovls, beliefs, copy(A_current), As
+# end |> unzip
+
+# maxiter = 50
+# tol = 1e-15
+
+# maxiter_vumps = 100
+# tol_vumps = 1e-14
+
+# d = 10
+# svd_trunc = TruncVUMPS(d; maxiter=maxiter_vumps, tol=tol_vumps)
+# maxiter = 20
+# tol = 0
+
+# spin(x,args...) = 3-2x
+# bp = mpbp_stationary_infinite_graph(k, [HomogeneousGlauberFactor(J, h, β)], 2)
+# cb = CB_BP(bp; f=spin)
+# iters, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
+
+# (m_ss, r_ss) = equilibrium_observables(RandomRegular(3), J; β, h)
+
+# using Plots
+# pl1 = plot([only(only(m)) for m in cb.m], xlabel="iter", ylabel="magnetiz")
+# hline!(pl1, [m_ss, -m_ss], ls=:dash, ylims=(-1,1))
+
+# pl2 = hline([autocorrelations(spin, bp)], xlabel="iter", ylabel="2-time autocorr")
+# hline!(pl2, [r_ss], ls=:dash, ylims=(-1,1))
+
+# plot(pl1, pl2)
 
 # ds = 1:2:13
 
