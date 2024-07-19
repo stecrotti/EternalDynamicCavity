@@ -46,13 +46,13 @@ end |> unzip
 m_bp = [[only(only(m)) for m in cb.m] for cb in cbs]
 
 pls = map(zip(ds, m_bp)) do (d, m)
-    pl = plot(m; title="d=$d", xlabel="iter", label="magnetiz", size=(500,200))
-    hline!(pl, [m_ss], label="eq", ls=:dash, ylims=(0,1), titlefontsize=8, labelfontsize=8, 
-        margin=7Plots.mm, legend=:bottomleft)
+    pl = plot(m; title="d=$d", xlabel="iter", label="magnetiz", size=(700,300))
+    hline!(pl, [m_ss], label="eq", ls=:dash, ylims=(0,1), titlefontsize=10, labelfontsize=8, 
+        margin=12Plots.mm, legend=:bottomleft)
     pl
 end
 
-pl = plot(pls..., layout=(length(ds), 1), size=(500,length(ds)*200))
+pl = plot(pls..., layout=(length(ds), 1), size=(700,length(ds)*300))
 savefig(pl, (@__DIR__)*"/vumps_glauber_ferro.pdf")
 
 ps = [m[end] for m in m_bp]
