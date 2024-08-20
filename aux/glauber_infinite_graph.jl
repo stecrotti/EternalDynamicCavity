@@ -7,7 +7,7 @@ using LaTeXStrings
 
 include("../../telegram/notifications.jl");
 
-T = 150         # final time
+T = 200         # final time
 k = 3          # degree
 m⁰ = 0.3       # magnetization at time zero
 
@@ -26,9 +26,9 @@ end
 
 cb = CB_BP(bp);
 
-matrix_sizes = [10, 15]
+matrix_sizes = [10, 15, 20, 30]
 maxiters = fill(50, length(matrix_sizes))
-maxiters = [50, 9]
+maxiters = [70, 70, 70, 70]
 iters = zeros(Int, length(maxiters))
 tol = 1e-5
 for i in eachindex(maxiters)
@@ -57,7 +57,7 @@ pl = plot(0:T, map(spin, only(cb.m[end])), m=:o, xlabel="time", ylabel="magnetiz
     legend=:bottomright, msc=:auto, c=blue)
 hline!(pl, [m_ss, -m_ss], ls=:dash, label="equilib")
 
-@telegram "glauber infinite"
+@telegram "glauber infinite jl"
 
 # using Graphs, IndexedGraphs, Statistics
 
