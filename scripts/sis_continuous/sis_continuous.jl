@@ -1,9 +1,6 @@
 import Pkg; Pkg.activate((@__DIR__)*"../../..")
-using TensorTrains.UniformTensorTrains
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
-using Unzip
-using LinearAlgebra
 # BLAS.set_num_threads(4)
 
 include("../../src/mpbp.jl")
@@ -18,20 +15,24 @@ k = 3
 
 ρ = 0.1
 Δts = 10.0 .^ (0:-0.25:-1.5)
-λs = [0.1, 0.2, 0.4]
-αs = [10.0 .^ (-1:-2:-5), 10.0 .^ (-1:-1:-3), 10.0 .^ (0:-2:-4)]
-ds = [6, 9, 10]
-@assert length(ds) == length(λs) == length(αs)
+# λs = [0.1, 0.2, 0.4]
+# αs = [10.0 .^ (-1:-2:-5), 10.0 .^ (-1:-1:-3), 10.0 .^ (0:-2:-4)]
+ds = [6, 8, 10]
+ds = [2, 4, 6]
+αs = fill(10.0 .^ (-1:-2:-5), length(ds))
+λ = 0.4
+# @assert length(ds) == length(λs) == length(αs)
 
-maxiter = 70
-tol = 1e-6
+maxiter = 100
+tol = 1e-12
 maxiter_vumps = 20
 tol_vumps = 1e-14
 
-p_bp = [zeros(length(Δts)) for _ in λs]
+p_bp = [zeros(length(Δts)) for _ in ds]
 
-for (i, λ) in enumerate(λs)
-    svd_trunc = TruncVUMPS(ds[i]; maxiter=maxiter_vumps, tol=tol_vumps)
+for (i, d) in enumerate(ds)
+    println("### d=$d, bond dim $i of $(length(ds))")
+    svd_trunc = TruncVUMPS(d; maxiter=maxiter_vumps, tol=tol_vumps)
     for (a, Δt) in enumerate(Δts)
         A0 = reshape([0.1 0.1; 0.1 10], 1,1,2,2)
         p = 0.0
@@ -49,9 +50,11 @@ for (i, λ) in enumerate(λs)
     end
 end
 
-
-jldsave((@__DIR__)*"/../../data/sis_continuous.jld2"; k, λs, ρ, Δts, αs, ds, p_bp,
+jldsave((@__DIR__)*"/../../data/sis_continuous3.jld2"; k, λ, ρ, Δts, αs, ds, p_bp,
                                                        maxiter, tol, maxiter_vumps, tol_vumps)
+
+# jldsave((@__DIR__)*"/../../data/sis_continuous.jld2"; k, λs, ρ, Δts, αs, ds, p_bp,
+#                                                        maxiter, tol, maxiter_vumps, tol_vumps)
 
 @telegram "SIS continuous"
 
