@@ -17,19 +17,19 @@ J = 0.4
 h = 0.2
 k = 3
 
-(m_ss, r_ss) = equilibrium_observables(RandomRegular(k), J; β, h)
+(m_ss, r_ss) = equilibrium_observables(RandomRegular(k), J; β, h, tol=1e-12)
 
 ds = 1:10
 
-maxiter = 70
-tol = 1e-7
-maxiter_vumps = 10
+maxiter = 150
+tol = 1e-10
+maxiter_vumps = 30
 tol_vumps = 1e-14
 
 spin(x,args...) = 3-2x
 bp = mpbp_stationary_infinite_graph(k, [HomogeneousGlauberFactor(J, h, β)], 2)
 
-m_bp, r_bp = map(eachindex(ds)) do a
+m_bp, r_bp, cbs = map(eachindex(ds)) do a
     only(bp.μ).tensor = reshape([0.1 0.1; 0.1 10], 1, 1, 2, 2)
     svd_trunc = TruncVUMPS(ds[a]; maxiter=maxiter_vumps, tol=tol_vumps)
     cb = CB_BPVUMPS(bp; f=spin)
@@ -37,9 +37,9 @@ m_bp, r_bp = map(eachindex(ds)) do a
     iter == maxiter && @warn "BP didn't converge"
     m = only(only(means(spin, bp)))
     r = only(only(alternate_correlations(spin, bp)))
-    m, r
+    m, r, cb
 end |> unzip
 
-jldsave((@__DIR__)*"/../../data/glauber_para2.jld2"; J, h, β, ds, m_bp, r_bp, m_ss, r_ss)
+jldsave((@__DIR__)*"/../../data/glauber_para3.jld2"; J, h, β, ds, m_bp, r_bp, m_ss, r_ss)
 
 @telegram "vumps glauber para finished"

@@ -1,10 +1,5 @@
-using MPSExperiments
-using TensorTrains.UniformTensorTrains
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
-using Plots
-using LaTeXStrings
-using Graphs, IndexedGraphs
 
 include("../../src/mpbp.jl")
 
@@ -36,31 +31,9 @@ cb = CB_BPVUMPS(bp)
 
 iter, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
 
-maxdist = 20
+maxdist = 40
 c_bp = only(autocovariances(spin, bp; maxdist))[1,2:end]
-only_even = true
-step = only_even + 1
-c_bp_plot = c_bp[step:step:end]
-pl_c = plot(1:step:maxdist, c_bp_plot, label="MPBP+VUMPS")
-plot!(pl_c; xlabel=L"\Delta t", size=(400,300),
-    ylabel=L"\langle \sigma_i^t\sigma_i^{t+\Delta t}\rangle - \langle \sigma_i^t\rangle\langle\sigma_i^{t+\Delta t}\rangle")
-plot!(pl_c; title="Time autocovariance. J=$J, h=$h, k=$k", titlefontsize=10)
-
-#### MONTECARLO
-T = 41
-N = 10^3
-m⁰ = 0.5
-g = random_regular_graph(N, k)
-ising = Ising(IndexedGraph(g); J=fill(J, ne(g)), h=fill(h, N), β)
-ϕᵢ = [ t == 0 ? [(1+m⁰)/2, (1-m⁰)/2] : ones(2) for t in 0:T]
-bp_mc = mpbp(Glauber(ising, T); ϕ = fill(ϕᵢ, N))
-sms = SoftMarginSampler(bp_mc)
-
-sample!(sms, 10^4)
-
-X = autocovariances(spin, sms)
-c_mc = mean_with_uncertainty(X)
 
 @telegram "Glauber autocovariance para - script"
 
-jldsave((@__DIR__)*"/../data/glauber_autocovariance_para.jld2"; J, h, β, k, d, c_bp, c_mc, maxdist, T);
+jldsave((@__DIR__)*"/../../data/glauber_autocovariance_para.jld2"; J, h, β, k, d, c_bp, maxdist);
