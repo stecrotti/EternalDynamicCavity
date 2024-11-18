@@ -19,10 +19,12 @@ T_mf = 10^4     # final time
 γ = 0.5    # prob. of being zero patient
 k = 3
 
-λs = 0.03:0.01:0.09
+λs = 0.03:0.005:0.09
 
-N = 10^3
-g = IndexedGraph(random_regular_graph(N, k))
+N = 5*10^3
+graph_seed = 0
+g = IndexedGraph(random_regular_graph(N, k, seed=graph_seed))
+
 p_dmp_disc, p_ibmf_disc, p_cme_disc = map(λs) do λ
     p_dmp_disc, = dmp_disc(T_mf, 1.0, g, λ, ρ, fill(γ, nv(g)))     
     p_ibmf_disc = ibmf_disc(T_mf, 1.0, g, λ, ρ, fill(γ, nv(g)))
@@ -53,6 +55,8 @@ end
 
 p_mc_val = [value.(p) for p in p_mc]
 
+@telegram "SIS meanfield montecarlo"
+
 
 #### BPVUMPS
 maxiter = 70
@@ -61,6 +65,7 @@ maxiter_vumps = 10
 tol_vumps = 1e-14
 
 ds = fill(14, length(λs))
+ds[6] = 20
 @assert length(ds) == length(λs)
 
 function main_loop()
@@ -85,7 +90,10 @@ iters, cbs = main_loop()
 
 p_bp = [[only(only(m)) for m in cb.m][end] for cb in cbs]
 
+
 #### SAVE
-jldsave("../../data/sis_meanfield_avg.jld2"; T_mf, Ts, λs, ρ, γ, N, nsamples,
+jldsave("../../data/sis_meanfield_avg3.jld2"; T_mf, Ts, ds, λs, ρ, γ, N, graph_seed, nsamples,
     p_dmp_disc_avg, p_ibmf_disc_avg, p_cme_disc_avg,
     p_mc_val, p_bp)
+
+@telegram "SIS meanfield finish"
