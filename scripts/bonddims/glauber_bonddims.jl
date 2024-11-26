@@ -6,7 +6,7 @@ using MatrixProductBP, MatrixProductBP.Models
 
 include("../../src/mpbp.jl")
 
-include((@__DIR__)*"/../../../telegram/notifications.jl")
+# include((@__DIR__)*"/../../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
@@ -100,4 +100,4 @@ m = ps
 
 jldsave((@__DIR__)*"/../../data/glauber_bonddims5.jld2"; Js, h, β, k, tol_magnetiz, m, ds, errs)
 
-@telegram "Glauber bond dim"
+# @telegram "Glauber bond dim"

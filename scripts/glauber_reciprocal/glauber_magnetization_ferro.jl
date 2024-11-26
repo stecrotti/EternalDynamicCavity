@@ -6,7 +6,7 @@ using MatrixProductBP, MatrixProductBP.Models
 
 include((@__DIR__)*"/../../src/mpbp.jl")
 
-include((@__DIR__)*"/../../../telegram/notifications.jl")
+# include((@__DIR__)*"/../../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
@@ -50,4 +50,4 @@ m_bp, r_bp, cbs = run_bp()
 
 jldsave((@__DIR__)*"/../../data/glauber_ferro5.jld2"; J, h, β, ds, m_bp, r_bp, m_ss, r_ss)
 
-@telegram "vumps glauber ferro finished"
+# @telegram "vumps glauber ferro finished"

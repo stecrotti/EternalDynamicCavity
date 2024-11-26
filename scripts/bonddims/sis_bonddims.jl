@@ -3,7 +3,7 @@ using MatrixProductBP, MatrixProductBP.Models
 
 
 include((@__DIR__)*"/../../src/mpbp.jl")
-include((@__DIR__)*"/../../../telegram/notifications.jl")
+# include((@__DIR__)*"/../../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
@@ -68,4 +68,4 @@ end
 jldsave((@__DIR__)*"/../../data/sis_bonddims4.jld2"; λs, ρ, k, tol_prob, ps, errs, 
     dmax, ds, αs)
 
-@telegram "SIS bond dim"
+# @telegram "SIS bond dim"

@@ -5,7 +5,7 @@ using IndexedGraphs, Graphs
 using Plots, Statistics
 using JLD2
 include("../../src/mpbp.jl")
-include("../../../telegram/notifications.jl")
+# include("../../../telegram/notifications.jl")
 
 
 include("random_bipartite_regular.jl")
@@ -68,26 +68,12 @@ iter, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
 
 m_bp = means(spin, bp)
 
-pl_mag = plot(; xlabel="time", ylabel="magnetiz")
-markersize = 2
-
 m_mcA = mean_with_uncertainty(m_mc[1:nA])
 m_mcB = mean_with_uncertainty(m_mc[nA+1:end])
 m_mc_mean = mean_with_uncertainty(m_mc)
-scatter!(0:T, mean_with_uncertainty(m_mc[1:nA]), label="A block, montecarlo"; m=:o, markersize, msc=:auto)
-scatter!(0:T, mean_with_uncertainty(m_mc[nA+1:end]), label="B block, montecarlo"; m=:o, markersize, msc=:auto)
-scatter!(0:T, mean_with_uncertainty(m_mc), label="mean, montecarlo"; m=:o, markersize, msc=:auto)
 
-fA = 1/kA / (1/kA + 1/kB)
-fB = 1/kB / (1/kA + 1/kB)
-
-hline!(m_bp[1:1], label="A block, MPBP+VUMPS", c=theme_palette(:auto)[1])
-hline!(m_bp[2:2], label="B block, MPBP+VUMPS", c=theme_palette(:auto)[2])
-hline!([fA*m_bp[1:1]+fB*m_bp[2:2]], label="mean, MPBP+VUMPS", c=theme_palette(:auto)[3])
-
-plot!(; size=(400,300), title="magnetization")
 
 jldsave((@__DIR__)*"/../../data/glauber_nonreciprocal.jld2"; kA, kB, nA, nB, JA, JB, h, β,
-    m_mcA, m_mcB, m_mc_mean, m_bp, T);
+    m_mcA, m_mcB, m_mc_mean, m_bp, T)
 
-@telegram "glauber nonreciprocal"
+# @telegram "glauber nonreciprocal"

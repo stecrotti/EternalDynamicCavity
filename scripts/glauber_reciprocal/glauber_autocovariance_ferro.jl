@@ -3,7 +3,7 @@ using MatrixProductBP, MatrixProductBP.Models
 
 include("../../src/mpbp.jl")
 
-include("../../../telegram/notifications.jl")
+# include("../../../telegram/notifications.jl")
 
 using Logging
 Logging.disable_logging(Logging.Info)
@@ -34,6 +34,6 @@ iter, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
 maxdist = 40
 c_bp = only(autocovariances(spin, bp; maxdist))[1,2:end]
 
-@telegram "Glauber autocovariance ferro - script"
+# @telegram "Glauber autocovariance ferro - script"
 
 jldsave((@__DIR__)*"/../../data/glauber_autocovariance_ferro.jld2"; J, h, β, k, d, c_bp, maxdist);

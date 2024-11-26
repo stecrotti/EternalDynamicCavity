@@ -2,7 +2,7 @@ using Graphs, IndexedGraphs, Statistics
 using MatrixProductBP, MatrixProductBP.Models
 using JLD2
 
-include("../../../telegram/notifications.jl");
+# include("../../../telegram/notifications.jl");
 
 T = 600        # final time
 k = 3         # degree
@@ -37,4 +37,4 @@ end
 
 jldsave((@__DIR__)*"/../../data/sis_gillespie.jld2"; k, λs, ρ, ps_gillespie, Ns, nsamples)
 
-@telegram "SIS gillespie"
+# @telegram "SIS gillespie"
