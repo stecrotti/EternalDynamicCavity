@@ -7,7 +7,7 @@ using JLD2
 using Unzip
 using MPSExperiments
 include("../../aux/meanfield.jl")
-include("../../../telegram/notifications.jl")
+# include("../../../telegram/notifications.jl")
 include("../../src/mpbp.jl")
 
 using Logging
@@ -55,7 +55,7 @@ end
 
 p_mc_val = [value.(p) for p in p_mc]
 
-@telegram "SIS meanfield montecarlo"
+# @telegram "SIS meanfield montecarlo"
 
 
 #### BPVUMPS
@@ -96,4 +96,4 @@ jldsave("../../data/sis_meanfield_avg3.jld2"; T_mf, Ts, ds, λs, ρ, γ, N, grap
     p_dmp_disc_avg, p_ibmf_disc_avg, p_cme_disc_avg,
     p_mc_val, p_bp)
 
-@telegram "SIS meanfield finish"
+# @telegram "SIS meanfield finish"
