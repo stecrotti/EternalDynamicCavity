@@ -1,3 +1,11 @@
 # MPSExperiments
 
-[![Build Status](https://github.com/stecrotti/MPSExperiments.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/stecrotti/MPSExperiments.jl/actions/workflows/CI.yml?query=branch%3Amain)
+Code for the paper [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
+
+## Usage
+Begin in the home directory of the package.
+```julia
+include("setup.jl")
+```
+
+To reproduce results in the article, run scripts from `/scripts/`, which will save data to `/data/`. Generate plots via [/scripts/plots.ipynb](/scripts/plots.ipynb). 
