@@ -2,10 +2,7 @@ using MPSExperiments
 using TensorTrains.UniformTensorTrains
 using MatrixProductBP, MatrixProductBP.Models
 using IndexedGraphs, Graphs
-using Plots, Statistics
 using JLD2
-include("../../src/mpbp.jl")
-# include("../../../telegram/notifications.jl")
 
 
 include("random_bipartite_regular.jl")
@@ -75,5 +72,3 @@ m_mc_mean = mean_with_uncertainty(m_mc)
 
 jldsave((@__DIR__)*"/../../data/glauber_nonreciprocal.jld2"; kA, kB, nA, nB, JA, JB, h, β,
     m_mcA, m_mcB, m_mc_mean, m_bp, T)
-
-# @telegram "glauber nonreciprocal"

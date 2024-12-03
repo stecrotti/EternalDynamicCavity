@@ -2,14 +2,13 @@ using Graphs, IndexedGraphs, Statistics
 using MatrixProductBP, MatrixProductBP.Models
 using JLD2
 
-# include("../../../telegram/notifications.jl");
 
 T = 600        # final time
 k = 3         # degree
 λs = [0.1, 0.2, 0.3, 0.4]      # rate of transmission
 ρ = 0.1       # rate of recovery
 γ = 0.9      # prob. of zero patient
-# N = 10^4
+
 nsamples = 5*10^3
 
 Ns = [100, 500, 2000]
@@ -36,5 +35,3 @@ ps_gillespie = map(λs) do λ
 end
 
 jldsave((@__DIR__)*"/../../data/sis_gillespie.jld2"; k, λs, ρ, ps_gillespie, Ns, nsamples)
-
-# @telegram "SIS gillespie"

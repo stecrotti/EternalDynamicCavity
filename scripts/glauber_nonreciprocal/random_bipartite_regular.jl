@@ -1,3 +1,5 @@
+using Random, SparseArrays
+
 # generate a random bipartite regular graph
 function random_bipartite_regular(nA, nB, kA, kB;
     accept_multiedges=false, rng=Random.default_rng(), ntrials = 10^3)

@@ -1,14 +1,8 @@
+using MPSExperiments
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
 
 include("../../src/mpbp.jl")
-
-# include("../../../telegram/notifications.jl")
-
-using Logging
-Logging.disable_logging(Logging.Info)
-Logging.disable_logging(Logging.Warn)
-
 
 k = 3
 J = 1.0
@@ -33,7 +27,5 @@ iter, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
 
 maxdist = 40
 c_bp = only(autocovariances(spin, bp; maxdist))[1,2:end]
-
-# @telegram "Glauber autocovariance ferro - script"
 
 jldsave((@__DIR__)*"/../../data/glauber_autocovariance_ferro.jld2"; J, h, β, k, d, c_bp, maxdist);
