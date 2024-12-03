@@ -1,7 +1,3 @@
 [deps]
-FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-TensorTrains = "89893e69-996d-40b1-ba32-8ff5f34c0dd5"
+MatrixProductBP = "3d39929c-b583-45fa-b331-3f50b693a38a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
