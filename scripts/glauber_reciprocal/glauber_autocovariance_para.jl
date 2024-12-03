@@ -1,14 +1,6 @@
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
-
-include("../../src/mpbp.jl")
-
-# include("../../../telegram/notifications.jl")
-
-using Logging
-Logging.disable_logging(Logging.Info)
-Logging.disable_logging(Logging.Warn)
-
+using MPSExperiments
 
 k = 3
 J = 0.4
@@ -33,7 +25,5 @@ iter, cb = iterate!(bp; maxiter, svd_trunc, tol, cb)
 
 maxdist = 40
 c_bp = only(autocovariances(spin, bp; maxdist))[1,2:end]
-
-# @telegram "Glauber autocovariance para - script"
 
 jldsave((@__DIR__)*"/../../data/glauber_autocovariance_para.jld2"; J, h, β, k, d, c_bp, maxdist);

@@ -1,16 +1,8 @@
-# using MPSExperiments
+using MPSExperiments
 using Unzip, Statistics
 using ProgressMeter
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
-
-include((@__DIR__)*"/../../src/mpbp.jl")
-
-# include((@__DIR__)*"/../../../telegram/notifications.jl")
-
-using Logging
-Logging.disable_logging(Logging.Info)
-Logging.disable_logging(Logging.Warn)
 
 J = 0.4
 β = 1.0
@@ -41,5 +33,3 @@ m_bp, r_bp, cbs = map(eachindex(ds)) do a
 end |> unzip
 
 jldsave((@__DIR__)*"/../../data/glauber_para3.jld2"; J, h, β, ds, m_bp, r_bp, m_ss, r_ss)
-
-# @telegram "vumps glauber para finished"

@@ -1,8 +1,7 @@
+using MPSExperiments
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
 using Graphs, IndexedGraphs
-
-# include("../../../telegram/notifications.jl")
 
 k = 3
 J = 1.0
@@ -34,8 +33,6 @@ Ns = [100, 200, 500, 1000, 10000]
 
 maxdist = 40
 c = run_mc.(Ns, maxdist)
-
-# @telegram "Glauber autocovariance ferro montecarlo - script"
 
 jldsave((@__DIR__)*"/../../data/glauber_autocovariance_ferro_montecarlo2.jld2"; J, h, β, k, Ns,
     c, T, nsamples);

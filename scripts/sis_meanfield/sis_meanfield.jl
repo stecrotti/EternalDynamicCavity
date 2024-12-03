@@ -1,18 +1,14 @@
+using MPSExperiments
 using MatrixProductBP, MatrixProductBP.Models
-using IndexedGraphs, DelimitedFiles, Plots, Statistics, LaTeXStrings, Random
-import ProgressMeter; ProgressMeter.ijulia_behavior(:clear)
+using IndexedGraphs, Statistics
+import ProgressMeter
 import Measurements: value, ±
 using Graphs
 using JLD2
 using Unzip
-using MPSExperiments
-include("../../aux/meanfield.jl")
-# include("../../../telegram/notifications.jl")
-include("../../src/mpbp.jl")
 
-using Logging
-Logging.disable_logging(Logging.Info)
-Logging.disable_logging(Logging.Warn)
+include("../../aux/meanfield.jl")
+
 
 T_mf = 10^4     # final time
 ρ = 0.1   # prob. of recovery
@@ -55,8 +51,6 @@ end
 
 p_mc_val = [value.(p) for p in p_mc]
 
-# @telegram "SIS meanfield montecarlo"
-
 
 #### BPVUMPS
 maxiter = 70
@@ -95,5 +89,3 @@ p_bp = [[only(only(m)) for m in cb.m][end] for cb in cbs]
 jldsave("../../data/sis_meanfield_avg3.jld2"; T_mf, Ts, ds, λs, ρ, γ, N, graph_seed, nsamples,
     p_dmp_disc_avg, p_ibmf_disc_avg, p_cme_disc_avg,
     p_mc_val, p_bp)
-
-# @telegram "SIS meanfield finish"

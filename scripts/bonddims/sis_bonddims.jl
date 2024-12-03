@@ -1,13 +1,6 @@
 using JLD2, UnPack
 using MatrixProductBP, MatrixProductBP.Models
-
-
-include((@__DIR__)*"/../../src/mpbp.jl")
-# include((@__DIR__)*"/../../../telegram/notifications.jl")
-
-using Logging
-Logging.disable_logging(Logging.Info)
-Logging.disable_logging(Logging.Warn)
+using MPSExperiments
 
 data = load((@__DIR__)*"/../../data/sis_meanfield_avg3.jld2")
 @unpack p_mc_val, λs, ρ = data
@@ -67,5 +60,3 @@ end
 
 jldsave((@__DIR__)*"/../../data/sis_bonddims4.jld2"; λs, ρ, k, tol_prob, ps, errs, 
     dmax, ds, αs)
-
-# @telegram "SIS bond dim"
