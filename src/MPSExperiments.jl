@@ -1,29 +1,17 @@
 module MPSExperiments
 
-using TensorTrains
-using TensorTrains.UniformTensorTrains
-using Tullio
-using TensorCast
-using Random
-using LinearAlgebra
-using Lazy: @forward
-using ProgressMeter
-using KrylovKit
+using TensorTrains: TensorTrains, SVDTrunc, summary_compact, _reshape1
+using TensorTrains.UniformTensorTrains: InfiniteUniformTensorTrain, dot, rand_infinite_uniform_tt
+using MatrixProductBP: MatrixProductBP, InfiniteUniformMPEM2, means
+using ProgressMeter: ProgressUnknown, next!
+
 using MPSKit
 using TensorKit
+using TensorCast
 
-using TensorTrains: _reshape1, _reshapeas
+include("mpbp.jl")
 
-# include("mpbp.jl")
-include("vumps.jl")
-include("vidal.jl")
-# include("VUMPS.jl")
+export TruncVUMPS, CB_BPVUMPS
 
-export tr
-# export truncate_vumps, iterate_bp_vumps, belief, pair_belief
-export iMPS, canonicalize, bond_dims, overlap
-export iterate_bp_vumps_bipartite
-export vumps, VUMPSState, resize!
-export iterate_bp_vumps_mpskit, CallbackBPVUMPS
 
 end

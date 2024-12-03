@@ -30,6 +30,7 @@ TensorKit = "07d1fe3e-3e46-537d-9eac-e9e13d0d4cec"
 TensorTrains = "89893e69-996d-40b1-ba32-8ff5f34c0dd5"
 TransmuteDims = "24ddb15e-299a-5cc3-8414-dbddc482d9ca"
 Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
+Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 
 [compat]
 FiniteDifferences = "0.12"
@@ -51,6 +52,7 @@ TensorCast = "0.4.7"
 TensorKit = "0.12"
 TensorTrains = "0.9, 0.10, 0.11"
 Tullio = "0.3"
+Unzip = "0.2.0"
 julia = "1.9"
 
 [extras]
