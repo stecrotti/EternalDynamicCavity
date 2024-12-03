@@ -1,7 +1,3 @@
-# Other methods for comparisons
-
-using ProgressMeter
-
 function initialize(T, Δt, g, λ_rate, ρ_rate, γ; conditional=false)
     Tdisc = floor(Int, T/Δt)
     ϕ = [zeros(Tdisc+1) for _ in 1:ne(g)]
