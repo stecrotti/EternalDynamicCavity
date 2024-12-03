@@ -1,4 +1,4 @@
-# MPSExperiments
+# InfiniteMatrixProductBP
 
 Code for the paper [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
 
