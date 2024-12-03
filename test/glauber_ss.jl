@@ -12,8 +12,8 @@ gl = Glauber(ising, 0)
 bp = mpbp_stationary(gl)
 
 spin(x, args...) = 3-2x
-svd_trunc = TruncVUMPS(5)
-iterate!(bp; tol=1e-14, maxiter=10, svd_trunc)
+svd_trunc = TruncVUMPS(4)
+iterate!(bp; tol=1e-14, maxiter=50, svd_trunc)
 m_bp = [only(m) for m in means(spin, bp)]
 
 bp_slow = MPBP(bp.g, [GenericFactor.(w) for w in bp.w], bp.ϕ, bp.ψ, 
