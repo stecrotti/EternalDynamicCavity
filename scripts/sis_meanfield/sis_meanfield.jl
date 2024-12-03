@@ -1,13 +1,13 @@
 using MPSExperiments
 using MatrixProductBP, MatrixProductBP.Models
 using IndexedGraphs, Statistics
-import ProgressMeter
+using ProgressMeter
 import Measurements: value, ±
 using Graphs
 using JLD2
 using Unzip
 
-include("../../aux/meanfield.jl")
+include((@__DIR__)*"/meanfield.jl")
 
 
 T_mf = 10^4     # final time
