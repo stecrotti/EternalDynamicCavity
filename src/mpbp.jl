@@ -1,11 +1,3 @@
-using TensorTrains: TensorTrains, SVDTrunc, summary_compact, _reshape1
-using TensorTrains.UniformTensorTrains: InfiniteUniformTensorTrain, dot, rand_infinite_uniform_tt
-using MatrixProductBP: MatrixProductBP, InfiniteUniformMPEM2
-using ProgressMeter: ProgressUnknown, next!
-using MPSKit
-using TensorKit
-using TensorCast
-
 struct TruncVUMPS{TI<:Integer, TF<:Real} <: SVDTrunc
     d       :: TI
     maxiter :: TI
@@ -52,8 +44,10 @@ function TensorTrains.compress!(A::InfiniteUniformTensorTrain; svd_trunc::TruncV
     else
         init
     end
-    if size(permutedims(_reshape1(init_resized.tensor), (1,3,2))) != size(rand(svd_trunc.d, prod(size(A.tensor)[3:end]), svd_trunc.d))
-        @show size(permutedims(_reshape1(init_resized.tensor), (1,3,2))) size(rand(svd_trunc.d, prod(size(A.tensor)[3:end]), svd_trunc.d))
+    @debug begin
+        if size(permutedims(_reshape1(init_resized.tensor), (1,3,2))) != size(rand(svd_trunc.d, prod(size(A.tensor)[3:end]), svd_trunc.d))
+            @show size(permutedims(_reshape1(init_resized.tensor), (1,3,2))) size(rand(svd_trunc.d, prod(size(A.tensor)[3:end]), svd_trunc.d))
+        end
     end
     Btruncperm, = truncate_vumps(Bperm, d; maxiter, tol, init = permutedims(_reshape1(init_resized.tensor), (1,3,2)))
     Btrunc = permutedims(Btruncperm, (1,3,2))
