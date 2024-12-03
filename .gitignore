@@ -2,3 +2,5 @@
 test/Manifest.toml
 *.pdf
 *checkpoint.ipynb
+aux/
+experiments/
