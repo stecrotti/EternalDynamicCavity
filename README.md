@@ -1,8 +1,8 @@
 # InfiniteMatrixProductBP
 
-Code for the paper [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
+Code for the article [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
 
-It builds on [MatrixProductBP.jl](https://github.com/stecrotti/MatrixProductBP.jl) and [TensorTrains.jl](https://github.com/stecrotti/TensorTrains.jl) 
+To use the package on your own stochastic dynamics, check out the syntax of [MatrixProductBP.jl](https://github.com/stecrotti/MatrixProductBP.jl) and [TensorTrains.jl](https://github.com/stecrotti/TensorTrains.jl). Code in this repo only adds functionalities to truncate infinite tensor trains and can be used to reproduce the results in the article. 
 
 ## Installation
 On Julia >= 1.9, run
