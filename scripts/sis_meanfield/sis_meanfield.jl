@@ -1,4 +1,4 @@
-using MPSExperiments
+using InfiniteMatrixProductBP
 using MatrixProductBP, MatrixProductBP.Models
 using IndexedGraphs, Statistics
 using ProgressMeter

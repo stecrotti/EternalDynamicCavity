@@ -1,4 +1,4 @@
-using MPSExperiments
+using InfiniteMatrixProductBP
 using Unzip, Statistics
 using ProgressMeter
 using JLD2

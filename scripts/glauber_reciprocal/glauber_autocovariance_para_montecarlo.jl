@@ -1,7 +1,7 @@
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
 using Graphs, IndexedGraphs
-using MPSExperiments
+using InfiniteMatrixProductBP
 
 k = 3
 J = 0.4

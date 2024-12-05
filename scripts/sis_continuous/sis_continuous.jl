@@ -1,4 +1,4 @@
-using MPSExperiments
+using InfiniteMatrixProductBP
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
 using LinearAlgebra

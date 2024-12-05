@@ -1,13 +1,14 @@
-module MPSExperiments
+__precompile__(false)
+
+module InfiniteMatrixProductBP
 
 using TensorTrains: TensorTrains, SVDTrunc, summary_compact, _reshape1
 using TensorTrains.UniformTensorTrains: InfiniteUniformTensorTrain, dot, rand_infinite_uniform_tt
 using MatrixProductBP: MatrixProductBP, InfiniteUniformMPEM2, means
 using ProgressMeter: ProgressUnknown, next!
 
-using MPSKit
-using TensorKit
-using TensorCast
+using TensorKit: TensorMap, ⊗, ℝ, id, storagetype
+using MPSKit: InfiniteMPS, DenseMPO, VUMPS, approximate, dot, add_util_leg, site_type, physicalspace
 
 export TruncVUMPS, CB_BPVUMPS
 
@@ -29,7 +30,7 @@ function truncate_vumps(A::Array{F,3}, d;
     @assert size(A, 3) == m
     t = TensorMap(A,(ℝ^m ⊗ ℝ^Q), ℝ^m) # the same but as a type digestible by MPSKit.jl
     ψ₀ = InfiniteMPS([t])
-    II = DenseMPO([MPSKit.add_util_leg(id(storagetype(MPSKit.site_type(ψ₀)), physicalspace(ψ₀, i)))
+    II = DenseMPO([add_util_leg(id(storagetype(site_type(ψ₀)), physicalspace(ψ₀, i)))
         for i in 1:length(ψ₀)])
     alg = VUMPS(; maxiter, kw_vumps...) # variational approximation algorithm
     # alg = IDMRG1(; maxiter)
