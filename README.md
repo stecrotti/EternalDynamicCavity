@@ -2,6 +2,8 @@
 
 Code for the paper [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
 
+It builds on [MatrixProductBP.jl](https://github.com/stecrotti/MatrixProductBP.jl) and [TensorTrains.jl](https://github.com/stecrotti/TensorTrains.jl) 
+
 ## Installation
 On Julia >= 1.9, run
 ```julia
