@@ -32,7 +32,7 @@ function truncate_vumps(A::Array{F,3}, d;
     ψ₀ = InfiniteMPS([t])
     II = DenseMPO([add_util_leg(id(storagetype(site_type(ψ₀)), physicalspace(ψ₀, i)))
         for i in 1:length(ψ₀)])
-    alg = VUMPS(; maxiter, kw_vumps...) # variational approximation algorithm
+    alg = VUMPS(; maxiter, verbosity=0, kw_vumps...) # variational approximation algorithm
     # alg = IDMRG1(; maxiter)
     @assert typeof(ψ) == typeof(ψ₀)
     ψ_, = approximate(ψ, (II, ψ₀), alg)   # do the truncation
