@@ -9,7 +9,6 @@ import Pkg; Pkg.add(url="https://github.com/stecrotti/InfiniteMatrixProductBP.jl
 ```
 
 ## Usage
-
 To play around with the method on your own stochastic dynamics, check out the syntax of [MatrixProductBP.jl](https://github.com/stecrotti/MatrixProductBP.jl) and [TensorTrains.jl](https://github.com/stecrotti/TensorTrains.jl) where most of the source code lies. Code in this repo only adds functionalities to truncate infinite tensor trains and can be used to reproduce the results in the article.
 
 To reproduce results in the article, clone the repo, begin in the main directory and run
