@@ -1,5 +1,4 @@
 using InfiniteMatrixProductBP
-using TensorTrains.UniformTensorTrains
 using MatrixProductBP, MatrixProductBP.Models
 using IndexedGraphs, Graphs
 using JLD2
