@@ -1,5 +1,5 @@
 # EternalDynamicCavity
-[![CI](https://github.com/stecrotti/InfiniteMatrixProductBP.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/stecrotti/InfiniteMatrixProductBP.jl/actions/workflows/CI.yml)
+[![CI](https://github.com/stecrotti/EternalDynamicCavity/actions/workflows/CI.yml/badge.svg)](https://github.com/stecrotti/EternalDynamicCavity/actions/workflows/CI.yml)
 
 Code for the article [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
 
