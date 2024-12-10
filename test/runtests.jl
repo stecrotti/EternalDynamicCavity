@@ -1,4 +1,4 @@
-using InfiniteMatrixProductBP
+using EternalDynamicCavity
 using Pkg
 
-Pkg.precompile("InfiniteMatrixProductBP")
+Pkg.precompile("EternalDynamicCavity")

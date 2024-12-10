@@ -1,4 +1,4 @@
-# InfiniteMatrixProductBP
+# EternalDynamicCavity
 [![CI](https://github.com/stecrotti/InfiniteMatrixProductBP.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/stecrotti/InfiniteMatrixProductBP.jl/actions/workflows/CI.yml)
 
 Code for the article [Nonequilibrium steady-state dynamics of Markov processes on graphs](https://arxiv.org/abs/2411.19100).
@@ -6,7 +6,7 @@ Code for the article [Nonequilibrium steady-state dynamics of Markov processes o
 ## Usage
 Clone this repo, move to the main directory, then run
 ```
-julia -e 'import Pkg; Pkg.activate(".")' -i
+julia -E 'import Pkg; Pkg.activate("."); Pkg.instantiate()'
 ```
 to start Julia and add the necessary dependencies.
 

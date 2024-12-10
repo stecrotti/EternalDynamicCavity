@@ -1,12 +1,10 @@
-name = "InfiniteMatrixProductBP"
+name = "EternalDynamicCavity"
 uuid = "298b07f2-4fec-42fe-b83d-9e02fb6e41bf"
 authors = ["Stefano Crotti <stefano.crotti@polito.it> and contributors"]
 version = "0.1.0"
 
 [deps]
 DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
-FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 IndexedGraphs = "8a731c18-cfb7-4915-927e-cc26b56b67cd"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
@@ -31,15 +29,13 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 
 [compat]
-FiniteDifferences = "0.12"
-ForwardDiff = "0.10"
 Graphs = "1.12.0"
 IndexedGraphs = "0.6.1"
 JLD2 = "0.5.9"
 Lazy = "0.15"
 LinearAlgebra = "1.8"
-MatrixProductBP = "0.9"
 MPSKit = "0.11.5"
+MatrixProductBP = "0.9"
 Pkg = "1.9"
 ProgressMeter = "1.9"
 Random = "1.8"
