@@ -1,4 +1,3 @@
-using InfiniteMatrixProductBP
 using MatrixProductBP, MatrixProductBP.Models
 using IndexedGraphs, Graphs
 using JLD2

@@ -1,6 +1,5 @@
 using JLD2, UnPack
 using MatrixProductBP, MatrixProductBP.Models
-using InfiniteMatrixProductBP
 
 data = load((@__DIR__)*"/../../data/sis_meanfield_avg3.jld2")
 @unpack p_mc_val, λs, ρ = data

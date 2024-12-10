@@ -1,6 +1,5 @@
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
-using InfiniteMatrixProductBP
 
 k = 3
 J = 0.4

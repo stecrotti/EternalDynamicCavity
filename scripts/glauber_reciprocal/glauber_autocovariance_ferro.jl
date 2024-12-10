@@ -1,8 +1,5 @@
-using InfiniteMatrixProductBP
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
-
-include("../../src/mpbp.jl")
 
 k = 3
 J = 1.0
