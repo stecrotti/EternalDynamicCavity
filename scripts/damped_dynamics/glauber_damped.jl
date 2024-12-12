@@ -1,7 +1,6 @@
 using JLD2
 using MatrixProductBP, MatrixProductBP.Models
 using LinearAlgebra
-# BLAS.set_num_threads(1)
 using Logging
 Logging.disable_logging(Logging.Warn)
 
@@ -50,14 +49,5 @@ run!(bps)
 
 r_bp = only.(first.(pair_correlations.(spin, bps)))
 
-include("../../telegram/notifications.jl")
-@telegram "damped dynamics"
-
-jldsave((@__DIR__)*"/../data/glauber_damped2.jld2"; k, J, h, β, p0s, ds, r_bp, r_ss,
+jldsave((@__DIR__)*"/../../data/glauber_damped2.jld2"; k, J, h, β, p0s, ds, r_bp, r_ss,
                                                        maxiter, tol, maxiter_vumps, tol_vumps)
-
-using Plots, LaTeXStrings
-pl = scatter(p0s, r_bp, xlabel=L"p_0", ylabel=L"\langle \sigma_i^t \sigma_j^t\rangle",
-    label="EDC d=$(only(unique(ds)))", xlims=(0,1), xticks=0:0.2:1)
-hline!(pl, [r_ss], label="Equilibrium", ls=:dash)
-savefig((@__DIR__)*"/glauber_damped.pdf")
