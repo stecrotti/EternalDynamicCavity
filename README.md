@@ -10,7 +10,7 @@ julia -E 'import Pkg; Pkg.activate("."); Pkg.instantiate()'
 ```
 to start Julia and add the necessary dependencies.
 
-To reproduce results in the article, run (`include`) scripts from [`scripts/`](scripts/), which will save data to [`data/`](data/). Generate plots via [`scripts/plots.ipynb`](scripts/plots.ipynb). 
+To reproduce results in the article, run (`include(<path/to/file.jl>)`) scripts from [`scripts/`](scripts/), which will save data to [`data/`](data/). Generate plots via [`scripts/plots.ipynb`](scripts/plots.ipynb). 
 
 
 To try the algorithm on your own stochastic dynamics, use [MatrixProductBP.jl](https://github.com/stecrotti/MatrixProductBP.jl). 
