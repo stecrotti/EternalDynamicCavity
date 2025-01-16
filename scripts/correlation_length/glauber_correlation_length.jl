@@ -11,7 +11,7 @@ k = 3
 β = 1.0
 h = 0.0
 
-Js = 0.1:0.05:1
+Js = 0.3:0.02:0.8
 
 function run_bp(J, d; A0=reshape([0.1 0.1; 0.1 10], 1,1,2,2))
     bp = mpbp_stationary_infinite_graph(k, [HomogeneousGlauberFactor(J, h, β)], 2)
@@ -72,10 +72,10 @@ bps = map(eachindex(Js)) do j
     b
 end
 
-corrs_ = reduce(hcat, [only.(autocovariances.(spin, b; maxdist)) for b in bps])
-corrs = [corrs_[j,:] for j in eachindex(ds)]
+# corrs_ = reduce(hcat, [only.(autocovariances.(spin, b; maxdist)) for b in bps])
+# corrs = [corrs_[j,:] for j in eachindex(ds)]
 
-ls = [compute_corrlength.(c, step, maxdist) for c in corrs]
+# ls = [compute_corrlength.(c, step, maxdist) for c in corrs]
 ls_eigen_ = reduce(hcat, [compute_corrlength_eigen.(b) for b in bps])
 ls_eigen = [ls_eigen_[j,:] for j in eachindex(ds)]
 ms_ = reduce(hcat, [compute_magnetization.(b) for b in bps])
@@ -83,5 +83,5 @@ ms = [ms_[j,:] for j in eachindex(ds)]
 
 ms_exact = exact_magnetization.(Js)
 
-jldsave((@__DIR__)*"/../../data/glauber_correlation_length3.jld2"; Js, h, k, corrs, ds, ls, 
+jldsave((@__DIR__)*"/../../data/glauber_correlation_length4.jld2"; Js, h, k, ds, 
     ls_eigen, ms, ms_exact)
