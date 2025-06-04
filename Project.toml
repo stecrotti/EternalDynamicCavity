@@ -31,7 +31,7 @@ Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 [compat]
 ColorSchemes = "3.27.1"
 Graphs = "1.12.0"
-IJulia = "1.28.1"
+IJulia = "1.25"
 IndexedGraphs = "0.6.1"
 JLD2 = "0.5.9"
 KrylovKit = "0.8.3"
